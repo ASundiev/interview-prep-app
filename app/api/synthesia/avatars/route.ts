@@ -3,8 +3,10 @@ import { NextResponse } from "next/server";
 const SYNTHESIA_API_KEY = process.env.SYNTHESIA_API_KEY;
 
 export async function GET() {
+    // Gracefully handle missing Synthesia API key - return empty array
     if (!SYNTHESIA_API_KEY) {
-        return NextResponse.json({ error: "Synthesia API key not configured" }, { status: 500 });
+        console.warn("Synthesia API key not configured - returning empty avatars list");
+        return NextResponse.json([]);
     }
 
     try {

@@ -2,6 +2,25 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
+### 1. Environment Variables Setup
+
+**For Local Development:**
+Create a `.env.local` file in the root directory:
+```bash
+OPENAI_API_KEY=sk-your-actual-api-key-here
+```
+
+**For Production (Vercel):**
+1. Go to your project on [Vercel Dashboard](https://vercel.com/dashboard)
+2. Navigate to **Settings** → **Environment Variables**
+3. Add `OPENAI_API_KEY` with your OpenAI API key
+4. Select environments (Production, Preview, Development)
+5. Redeploy your application
+
+📖 **See [ENV_SETUP.md](./ENV_SETUP.md) for detailed instructions.**
+
+### 2. Run the Development Server
+
 First, run the development server:
 
 ```bash

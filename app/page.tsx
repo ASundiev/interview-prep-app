@@ -90,7 +90,7 @@ export default function Home() {
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-primary-light to-purple-400">next interview</span>
               </h1>
               <p className="text-lg text-gray-400 max-w-lg mx-auto lg:mx-0 leading-relaxed">
-                Upload your CV and job description to practice with a realistic AI avatar. Get instant feedback and improve your confidence.
+                Upload your CV and job description to practice with an AI interview coach. Get instant feedback and improve your confidence.
               </p>
             </div>
 
@@ -104,7 +104,7 @@ export default function Home() {
                 <span>Instant Feedback</span>
               </div>
               <div className="flex items-center space-x-2 text-sm text-gray-400">
-                <CheckCircle2 className="w-4 h-4 text-secondary" />
+                <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 whitespace-nowrap">Soon</span>
                 <span>Realistic Avatars</span>
               </div>
             </div>
