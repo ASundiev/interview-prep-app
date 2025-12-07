@@ -21,7 +21,7 @@ export default function InterviewPage() {
     const router = useRouter();
     const [context, setContext] = useState<InterviewContext | null>(null);
     const [isMicOn, setIsMicOn] = useState(true);
-    const { connect, disconnect, status, isSpeaking, items } = useRealtime();
+    const { connect, disconnect, status, isSpeaking, items, error: realtimeError } = useRealtime();
     
     // Briefing State
     const [briefingStatus, setBriefingStatus] = useState<'idle' | 'generating' | 'ready' | 'playing' | 'completed' | 'failed'>('idle');
@@ -88,14 +88,33 @@ export default function InterviewPage() {
             });
             
             const payload = await response.json().catch(() => null);
+            
+            // If response is not ok, skip briefing instead of throwing error
             if (!response.ok) {
-                const detail = payload?.details || payload?.error || "Failed to create video";
-                throw new Error(detail);
+                console.warn("Synthesia API error - skipping briefing:", payload?.error || payload?.details);
+                setBriefingStatus('idle'); // Skip briefing, allow interview to start
+                setGenerationProgress(100);
+                return;
             }
 
             const data = payload;
+            if (!data || !data.id) {
+                console.warn("Invalid response from Synthesia API - skipping briefing");
+                setBriefingStatus('idle');
+                setGenerationProgress(100);
+                return;
+            }
+            
             const videoId = data.id;
             console.log("Video created, ID:", videoId);
+            
+            // Check if this is a mock response (Synthesia unavailable)
+            if (data.message && data.message.includes("Synthesia API not available")) {
+                console.log("Synthesia unavailable - skipping briefing");
+                setBriefingStatus('idle'); // Skip briefing, allow interview to start
+                setGenerationProgress(100);
+                return;
+            }
             
             setGenerationProgress(10); // Request sent
             
@@ -120,8 +139,14 @@ export default function InterviewPage() {
 
                     if (statusData.status === "complete") {
                         clearInterval(pollInterval);
+                        // Only set video URL if it exists (not null)
+                        if (statusData.download) {
                         setBriefingVideoUrl(statusData.download);
                         setBriefingStatus('ready');
+                        } else {
+                            // No video URL means Synthesia is unavailable
+                            setBriefingStatus('idle');
+                        }
                         setGenerationProgress(100);
                     } else {
                         // Realistic fake progress: 10% -> 90% over ~2 minutes
@@ -137,8 +162,9 @@ export default function InterviewPage() {
 
         } catch (error) {
             console.error("Briefing generation failed:", error);
-            setBriefingStatus('failed'); // Fallback to skip briefing
-            setBriefingError(error instanceof Error ? error.message : "Failed to create video");
+            // Instead of showing error, just skip briefing and allow interview to proceed
+            setBriefingStatus('idle');
+            setBriefingError(null);
         }
     };
 
@@ -303,23 +329,41 @@ export default function InterviewPage() {
                                         </button>
                                     </div>
                                 ) : (
-                                    <button
-                                        onClick={handleStart}
-                                        disabled={status === "connecting"}
-                                        className="btn-primary py-4 px-10 text-lg flex items-center space-x-3 shadow-2xl hover:shadow-primary/50"
-                                    >
-                                        {status === "connecting" ? (
-                                            <>
-                                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                                                <span>Connecting...</span>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Mic className="w-6 h-6" />
-                                                <span>Start Interview</span>
-                                            </>
+                                    <div className="flex flex-col items-center space-y-4">
+                                        {status === "error" && realtimeError && (
+                                            <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 max-w-md text-center">
+                                                <p className="text-sm text-red-400 font-medium mb-2">Connection Failed</p>
+                                                <p className="text-xs text-gray-400">{realtimeError}</p>
+                                                {realtimeError.includes("Microphone permission") && (
+                                                    <div className="mt-3 text-xs text-gray-500">
+                                                        <p>To fix this:</p>
+                                                        <ol className="list-decimal list-inside mt-1 space-y-1">
+                                                            <li>Click the lock icon in your browser's address bar</li>
+                                                            <li>Allow microphone access</li>
+                                                            <li>Refresh the page and try again</li>
+                                                        </ol>
+                                                    </div>
+                                                )}
+                                            </div>
                                         )}
-                                    </button>
+                                        <button
+                                            onClick={handleStart}
+                                            disabled={status === "connecting"}
+                                            className="btn-primary py-4 px-10 text-lg flex items-center space-x-3 shadow-2xl hover:shadow-primary/50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            {status === "connecting" ? (
+                                                <>
+                                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                                    <span>Connecting...</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Mic className="w-6 h-6" />
+                                                    <span>Start Interview</span>
+                                                </>
+                                            )}
+                                        </button>
+                                    </div>
                                 )}
                             </div>
                         )}

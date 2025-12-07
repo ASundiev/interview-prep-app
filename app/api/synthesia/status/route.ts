@@ -3,7 +3,20 @@ import { NextRequest, NextResponse } from "next/server";
 const SYNTHESIA_API_KEY = process.env.SYNTHESIA_API_KEY;
 
 export async function GET(req: NextRequest) {
+    // Gracefully handle missing Synthesia API key
     if (!SYNTHESIA_API_KEY) {
+        console.warn("Synthesia API key not configured - returning mock status");
+        const { searchParams } = new URL(req.url);
+        const id = searchParams.get("id");
+        
+        // If it's a mock ID, return complete status
+        if (id === "mock-video-id") {
+            return NextResponse.json({ 
+                status: "complete",
+                download: null
+            });
+        }
+        
         return NextResponse.json({ error: "Synthesia API key not configured" }, { status: 500 });
     }
 
