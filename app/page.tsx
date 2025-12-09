@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Upload, FileText, ArrowRight, Loader2, CheckCircle2 } from "lucide-react";
+import { Upload, FileText, ArrowRight, Loader2, CheckCircle2, Mic, Zap, Bot, Clock } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function Home() {
@@ -94,18 +94,60 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start space-y-4 sm:space-y-0 sm:space-x-4">
-              <div className="flex items-center space-x-2 text-sm text-gray-400">
-                <CheckCircle2 className="w-4 h-4 text-secondary" />
-                <span>Real-time Voice</span>
+            <div className="grid grid-cols-1 gap-6 pt-4 sm:grid-cols-2">
+              {/* Feature 1 */}
+              <div className="flex items-start space-x-3 text-left">
+                <div className="flex-shrink-0">
+                  <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10 text-primary border border-primary/20">
+                    <Mic className="w-5 h-5" />
+                  </div>
+                </div>
+                <div>
+                  <h4 className="text-base font-semibold text-white">Real-time Voice</h4>
+                  <p className="mt-1 text-sm text-gray-400 leading-relaxed">Natural, conversation-based AI interviews.</p>
+                </div>
               </div>
-              <div className="flex items-center space-x-2 text-sm text-gray-400">
-                <CheckCircle2 className="w-4 h-4 text-secondary" />
-                <span>Instant Feedback</span>
+
+              {/* Feature 2 */}
+              <div className="flex items-start space-x-3 text-left">
+                <div className="flex-shrink-0">
+                  <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10 text-primary border border-primary/20">
+                    <Zap className="w-5 h-5" />
+                  </div>
+                </div>
+                <div>
+                  <h4 className="text-base font-semibold text-white">Instant Feedback</h4>
+                  <p className="mt-1 text-sm text-gray-400 leading-relaxed">Detailed performance analysis after every session.</p>
+                </div>
               </div>
-              <div className="flex items-center space-x-2 text-sm text-gray-400">
-                <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 whitespace-nowrap">Soon</span>
-                <span>Realistic Avatars</span>
+
+              {/* Feature 3 */}
+              <div className="flex items-start space-x-3 text-left">
+                <div className="flex-shrink-0">
+                  <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10 text-primary border border-primary/20">
+                    <FileText className="w-5 h-5" />
+                  </div>
+                </div>
+                <div>
+                  <h4 className="text-base font-semibold text-white">Tailored Scenarios</h4>
+                  <p className="mt-1 text-sm text-gray-400 leading-relaxed">Questions generated from your specific CV.</p>
+                </div>
+              </div>
+
+              {/* Feature 4 */}
+              <div className="flex items-start space-x-3 text-left">
+                <div className="flex-shrink-0 relative">
+                  <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-dark-800 text-gray-500 border border-white/5">
+                    <Bot className="w-5 h-5" />
+                  </div>
+                  <div className="absolute -top-1 -right-1 flex items-center justify-center w-4 h-4 rounded-full bg-dark-900 border border-white/10 text-gray-500">
+                    <Clock className="w-2.5 h-2.5" />
+                  </div>
+                </div>
+                <div>
+                  <h4 className="text-base font-semibold text-gray-400">Realistic Avatars</h4>
+                  <p className="mt-1 text-sm text-gray-600 leading-relaxed">Immersive practice with lifelike avatars.</p>
+                </div>
               </div>
             </div>
           </div>

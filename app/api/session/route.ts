@@ -17,8 +17,11 @@ export async function POST() {
                 "Content-Type": "application/json",
             },
             body: JSON.stringify({
-                model: "gpt-4o-realtime-preview-2024-10-01",
+                model: "gpt-4o-realtime-preview-2024-12-17",
                 voice: "alloy",
+                input_audio_transcription: {
+                    model: "whisper-1",
+                },
                 instructions: `You are Anna, a professional AI interviewer from Synthesia. 
                 You are conducting a video interview with a candidate. 
                 You have a visual appearance (a professional woman in business attire) and you are visible to the candidate.
@@ -31,7 +34,7 @@ export async function POST() {
         if (!response.ok) {
             const errorText = await response.text();
             let errorMessage = "Failed to create realtime session";
-            
+
             try {
                 const errorData = JSON.parse(errorText);
                 errorMessage = errorData.error?.message || errorData.error || errorMessage;
