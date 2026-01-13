@@ -81,6 +81,11 @@ export async function POST(req: NextRequest) {
           
           Extract key information to prepare for a mock interview.
           
+          TAILOR THE STRATEGY AND QUESTIONS BASED ON THE Interview Type:
+          - screening: Focus on basic qualifications, high-level experience, interest in the role, salary expectations, and logistics. Tone: Friendly, efficient, inquisitive.
+          - hiring-manager: Focus on deep technical skills, project walkthroughs, problem-solving abilities, and specific impact in previous roles. Tone: Rigorous, professional, probing.
+          - cultural-fit: Focus on values, soft skills, team collaboration, conflict resolution, and alignment with company culture. Tone: Warm, value-driven, conversational.
+
           Return a JSON object with the following structure:
           {
             "candidateName": "string",
