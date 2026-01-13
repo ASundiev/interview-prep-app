@@ -11,6 +11,7 @@ interface InterviewContext {
     interviewQuestions: string[];
     companyContext?: string;
     candidateSummary?: string;
+    extraContext?: string | null;
     avatar?: string;
     avatarName?: string;
     background?: string | null;
@@ -22,7 +23,7 @@ export default function InterviewPage() {
     const [context, setContext] = useState<InterviewContext | null>(null);
     const [isMicOn, setIsMicOn] = useState(true);
     const { connect, disconnect, status, isSpeaking, items, error: realtimeError } = useRealtime();
-    
+
     // Briefing State
     const [briefingStatus, setBriefingStatus] = useState<'idle' | 'generating' | 'ready' | 'playing' | 'completed' | 'failed'>('idle');
     const [generationProgress, setGenerationProgress] = useState(0);
@@ -51,7 +52,7 @@ export default function InterviewPage() {
         setBriefingStatus('generating');
         setBriefingError(null);
         setGenerationProgress(5);
-        
+
         try {
             const defaultAvatarId =
                 process.env.NEXT_PUBLIC_PREFERRED_AVATAR_ID || "anna_costume1_cameraA";
@@ -73,7 +74,7 @@ export default function InterviewPage() {
             const typeLabel = typeLabelMap[type] || typeLabelMap["screening"];
             const script = `Hello ${ctx.candidateName}. Welcome to your interview for the ${ctx.roleTitle} position. I've reviewed your background in ${ctx.candidateSummary ? ctx.candidateSummary.slice(0, 50) + "..." : "your resume"}, and I'm excited to discuss how you can contribute. We'll go through a few technical and behavioral questions. Please answer clearly and concisely. Good luck!`;
             const scriptWithType = `${script}\n\nThis session is framed as a ${typeLabel}, so ${typeSnippet}`;
-            
+
             // 1. Create Video Request
             const response = await fetch("/api/synthesia/create", {
                 method: "POST",
@@ -86,9 +87,9 @@ export default function InterviewPage() {
                     background: ctx.background ?? undefined
                 })
             });
-            
+
             const payload = await response.json().catch(() => null);
-            
+
             // If response is not ok, skip briefing instead of throwing error
             if (!response.ok) {
                 console.warn("Synthesia API error - skipping briefing:", payload?.error || payload?.details);
@@ -104,10 +105,10 @@ export default function InterviewPage() {
                 setGenerationProgress(100);
                 return;
             }
-            
+
             const videoId = data.id;
             console.log("Video created, ID:", videoId);
-            
+
             // Check if this is a mock response (Synthesia unavailable)
             if (data.message && data.message.includes("Synthesia API not available")) {
                 console.log("Synthesia unavailable - skipping briefing");
@@ -115,13 +116,13 @@ export default function InterviewPage() {
                 setGenerationProgress(100);
                 return;
             }
-            
+
             setGenerationProgress(10); // Request sent
-            
+
             // 2. Polling Logic
             let attempts = 0;
             const maxAttempts = 60; // 5 minutes (60 * 5s)
-            
+
             const pollInterval = setInterval(async () => {
                 attempts++;
                 if (attempts > maxAttempts) {
@@ -133,7 +134,7 @@ export default function InterviewPage() {
                 try {
                     const statusRes = await fetch(`/api/synthesia/status?id=${videoId}`);
                     if (!statusRes.ok) return;
-                    
+
                     const statusData = await statusRes.json();
                     console.log("Video Status:", statusData.status);
 
@@ -141,8 +142,8 @@ export default function InterviewPage() {
                         clearInterval(pollInterval);
                         // Only set video URL if it exists (not null)
                         if (statusData.download) {
-                        setBriefingVideoUrl(statusData.download);
-                        setBriefingStatus('ready');
+                            setBriefingVideoUrl(statusData.download);
+                            setBriefingStatus('ready');
                         } else {
                             // No video URL means Synthesia is unavailable
                             setBriefingStatus('idle');
@@ -151,8 +152,8 @@ export default function InterviewPage() {
                     } else {
                         // Realistic fake progress: 10% -> 90% over ~2 minutes
                         setGenerationProgress(prev => {
-                           if (prev >= 90) return 90;
-                           return prev + 2; // Increment slightly
+                            if (prev >= 90) return 90;
+                            return prev + 2; // Increment slightly
                         });
                     }
                 } catch (e) {
@@ -195,7 +196,7 @@ export default function InterviewPage() {
     };
 
     const handleStart = () => {
-        connect();
+        connect(context);
     };
 
     const handleEndInterview = () => {
@@ -243,9 +244,9 @@ export default function InterviewPage() {
                         {/* Avatar Placeholder / Briefing Video */}
                         <div className="relative z-10 flex flex-col items-center justify-center w-full h-full">
                             {briefingStatus === 'playing' && briefingVideoUrl ? (
-                                <video 
+                                <video
                                     ref={videoRef}
-                                    src={briefingVideoUrl} 
+                                    src={briefingVideoUrl}
                                     className="w-full h-full object-cover rounded-3xl"
                                     onEnded={handleBriefingEnded}
                                     controls={false}
@@ -265,7 +266,7 @@ export default function InterviewPage() {
                                     )}
                                 </div>
                             )}
-                            
+
                             {briefingStatus !== 'playing' && (
                                 <div className="text-center space-y-2">
                                     <h3 className="text-xl font-semibold text-white">
@@ -274,7 +275,7 @@ export default function InterviewPage() {
                                     <p className={`text-sm font-medium transition-colors duration-300 ${isSpeaking ? 'text-primary' : 'text-gray-500'}`}>
                                         {status === "connected" ? (isSpeaking ? "Speaking..." : "Listening...") : (
                                             briefingStatus === 'generating' ? "Preparing your briefing..." :
-                                            briefingStatus === 'ready' ? "Briefing Ready" : "Ready to start"
+                                                briefingStatus === 'ready' ? "Briefing Ready" : "Ready to start"
                                         )}
                                     </p>
                                 </div>
@@ -290,8 +291,8 @@ export default function InterviewPage() {
                                         <div className="space-y-1 text-center w-full">
                                             <p className="text-sm font-medium text-gray-300">Generating personalized briefing...</p>
                                             <div className="w-full bg-dark-700 rounded-full h-1.5">
-                                                <div 
-                                                    className="bg-primary h-1.5 rounded-full transition-all duration-500 ease-out" 
+                                                <div
+                                                    className="bg-primary h-1.5 rounded-full transition-all duration-500 ease-out"
                                                     style={{ width: `${generationProgress}%` }}
                                                 ></div>
                                             </div>
@@ -301,13 +302,13 @@ export default function InterviewPage() {
                                 ) : briefingStatus === 'ready' ? (
                                     <div className="flex flex-col items-center space-y-3">
                                         {autoplayError && <p className="text-xs text-red-400">{autoplayError}</p>}
-                                    <button
-                                        onClick={handlePlayBriefing}
-                                        className="btn-primary py-4 px-10 text-lg flex items-center space-x-3 shadow-2xl hover:shadow-primary/50"
-                                    >
-                                        <Play className="w-6 h-6 fill-current" />
-                                        <span>Watch Briefing</span>
-                                    </button>
+                                        <button
+                                            onClick={handlePlayBriefing}
+                                            className="btn-primary py-4 px-10 text-lg flex items-center space-x-3 shadow-2xl hover:shadow-primary/50"
+                                        >
+                                            <Play className="w-6 h-6 fill-current" />
+                                            <span>Watch Briefing</span>
+                                        </button>
                                     </div>
                                 ) : briefingStatus === 'failed' ? (
                                     <div className="flex flex-col items-center space-y-4 text-center max-w-sm">

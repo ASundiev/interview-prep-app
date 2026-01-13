@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-export async function POST() {
+export async function POST(req: NextRequest) {
     try {
+        const { context } = await req.json();
         // Check if API key is configured
         if (!process.env.OPENAI_API_KEY) {
             return NextResponse.json(
@@ -23,7 +24,13 @@ export async function POST() {
                     model: "whisper-1",
                 },
                 instructions: `You are Anna, a professional AI interviewer from Synthesia. 
-                You are conducting a video interview with a candidate. 
+                You are conducting a video interview with a candidate${context?.candidateName ? ` named ${context.candidateName}` : ""}. 
+                ${context?.roleTitle ? `The position is for ${context.roleTitle}.` : ""}
+                ${context?.candidateSummary ? `Candidate background: ${context.candidateSummary}` : ""}
+                ${context?.companyContext ? `Company context: ${context.companyContext}` : ""}
+                ${context?.recruiterStrategy ? `Recruiter strategy: ${context.recruiterStrategy}` : ""}
+                ${context?.extraContext ? `EXTRA CONTEXT TO CONSIDER: ${context.extraContext}` : ""}
+                
                 You have a visual appearance (a professional woman in business attire) and you are visible to the candidate.
                 NEVER say you are a "voice-only AI" or that you "don't have a body". 
                 Always behave as if you are a real person conducting a video call.
