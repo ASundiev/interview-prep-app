@@ -24,180 +24,21 @@ export default function InterviewPage() {
     const [isMicOn, setIsMicOn] = useState(true);
     const { connect, disconnect, status, isSpeaking, items, error: realtimeError } = useRealtime();
 
-    // Briefing State
-    const [briefingStatus, setBriefingStatus] = useState<'idle' | 'generating' | 'ready' | 'playing' | 'completed' | 'failed'>('idle');
-    const [generationProgress, setGenerationProgress] = useState(0);
-    const [briefingVideoUrl, setBriefingVideoUrl] = useState<string | null>(null);
-    const videoRef = useRef<HTMLVideoElement>(null);
-    const [autoplayError, setAutoplayError] = useState<string | null>(null);
-    const [briefingError, setBriefingError] = useState<string | null>(null);
-    const hasQueuedBriefing = useRef(false);
+    const handleStart = useCallback((ctx: InterviewContext) => {
+        connect(ctx);
+    }, [connect]);
 
     useEffect(() => {
         const stored = localStorage.getItem("interviewContext");
         if (stored) {
             const parsedContext = JSON.parse(stored);
             setContext(parsedContext);
-            // Start generating briefing immediately if valid context (only once)
-            if (parsedContext && !hasQueuedBriefing.current) {
-                hasQueuedBriefing.current = true;
-                generateBriefing(parsedContext);
-            }
+            // Start interview immediately when context is available
+            handleStart(parsedContext);
         } else {
             router.push("/");
         }
-    }, [router]);
-
-    const generateBriefing = async (ctx: InterviewContext) => {
-        setBriefingStatus('generating');
-        setBriefingError(null);
-        setGenerationProgress(5);
-
-        try {
-            const defaultAvatarId =
-                process.env.NEXT_PUBLIC_PREFERRED_AVATAR_ID || "anna_costume1_cameraA";
-            const avatarId = ctx.avatar || defaultAvatarId;
-            const avatarName =
-                ctx.avatarName || process.env.NEXT_PUBLIC_PREFERRED_AVATAR_NAME || "AI Interviewer";
-            const type = ctx.interviewType || "screening";
-            const typeScriptSnippets: Record<string, string> = {
-                "screening": "I’ll focus on your overall fit, communication style, and motivation for this role.",
-                "hiring-manager": "I’ll dive deeper into your impact, leadership decisions, and collaboration style.",
-                "cultural-fit": "I’ll explore how your values, teamwork habits, and communication style align with our culture.",
-            };
-            const typeLabelMap: Record<string, string> = {
-                "screening": "screening conversation",
-                "hiring-manager": "hiring manager discussion",
-                "cultural-fit": "culture fit conversation",
-            };
-            const typeSnippet = typeScriptSnippets[type] || typeScriptSnippets["screening"];
-            const typeLabel = typeLabelMap[type] || typeLabelMap["screening"];
-            const script = `Hello ${ctx.candidateName}. Welcome to your interview for the ${ctx.roleTitle} position. I've reviewed your background in ${ctx.candidateSummary ? ctx.candidateSummary.slice(0, 50) + "..." : "your resume"}, and I'm excited to discuss how you can contribute. We'll go through a few technical and behavioral questions. Please answer clearly and concisely. Good luck!`;
-            const scriptWithType = `${script}\n\nThis session is framed as a ${typeLabel}, so ${typeSnippet}`;
-
-            // 1. Create Video Request
-            const response = await fetch("/api/synthesia/create", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    title: `Briefing: ${ctx.candidateName}`,
-                    script: scriptWithType,
-                    description: `Interview briefing for ${ctx.roleTitle}`,
-                    avatar: avatarId,
-                    background: ctx.background ?? undefined
-                })
-            });
-
-            const payload = await response.json().catch(() => null);
-
-            // If response is not ok, skip briefing instead of throwing error
-            if (!response.ok) {
-                console.warn("Synthesia API error - skipping briefing:", payload?.error || payload?.details);
-                setBriefingStatus('idle'); // Skip briefing, allow interview to start
-                setGenerationProgress(100);
-                return;
-            }
-
-            const data = payload;
-            if (!data || !data.id) {
-                console.warn("Invalid response from Synthesia API - skipping briefing");
-                setBriefingStatus('idle');
-                setGenerationProgress(100);
-                return;
-            }
-
-            const videoId = data.id;
-            console.log("Video created, ID:", videoId);
-
-            // Check if this is a mock response (Synthesia unavailable)
-            if (data.message && data.message.includes("Synthesia API not available")) {
-                console.log("Synthesia unavailable - skipping briefing");
-                setBriefingStatus('idle'); // Skip briefing, allow interview to start
-                setGenerationProgress(100);
-                return;
-            }
-
-            setGenerationProgress(10); // Request sent
-
-            // 2. Polling Logic
-            let attempts = 0;
-            const maxAttempts = 60; // 5 minutes (60 * 5s)
-
-            const pollInterval = setInterval(async () => {
-                attempts++;
-                if (attempts > maxAttempts) {
-                    clearInterval(pollInterval);
-                    setBriefingStatus('idle'); // Timeout fallback
-                    return;
-                }
-
-                try {
-                    const statusRes = await fetch(`/api/synthesia/status?id=${videoId}`);
-                    if (!statusRes.ok) return;
-
-                    const statusData = await statusRes.json();
-                    console.log("Video Status:", statusData.status);
-
-                    if (statusData.status === "complete") {
-                        clearInterval(pollInterval);
-                        // Only set video URL if it exists (not null)
-                        if (statusData.download) {
-                            setBriefingVideoUrl(statusData.download);
-                            setBriefingStatus('ready');
-                        } else {
-                            // No video URL means Synthesia is unavailable
-                            setBriefingStatus('idle');
-                        }
-                        setGenerationProgress(100);
-                    } else {
-                        // Realistic fake progress: 10% -> 90% over ~2 minutes
-                        setGenerationProgress(prev => {
-                            if (prev >= 90) return 90;
-                            return prev + 2; // Increment slightly
-                        });
-                    }
-                } catch (e) {
-                    console.error("Polling error", e);
-                }
-            }, 5000); // Poll every 5 seconds
-
-        } catch (error) {
-            console.error("Briefing generation failed:", error);
-            // Instead of showing error, just skip briefing and allow interview to proceed
-            setBriefingStatus('idle');
-            setBriefingError(null);
-        }
-    };
-
-    const handlePlayBriefing = useCallback(() => {
-        if (!briefingVideoUrl) return;
-        setBriefingStatus('playing');
-        if (videoRef.current) {
-            videoRef.current.currentTime = 0;
-            const playPromise = videoRef.current.play();
-            if (playPromise !== undefined) {
-                playPromise.catch(() => {
-                    setAutoplayError("Tap to play briefing");
-                    setBriefingStatus('ready');
-                });
-            }
-        }
-    }, [briefingVideoUrl]);
-
-    useEffect(() => {
-        if (briefingStatus === 'ready' && briefingVideoUrl) {
-            setAutoplayError(null);
-            handlePlayBriefing();
-        }
-    }, [briefingStatus, briefingVideoUrl, handlePlayBriefing]);
-
-    const handleBriefingEnded = () => {
-        setBriefingStatus('completed');
-    };
-
-    const handleStart = () => {
-        connect(context);
-    };
+    }, [router, handleStart]);
 
     const handleEndInterview = () => {
         disconnect();
@@ -241,131 +82,49 @@ export default function InterviewPage() {
                         <div className="absolute inset-0 bg-gradient-to-b from-dark-800 to-dark-900"></div>
                         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent opacity-50"></div>
 
-                        {/* Avatar Placeholder / Briefing Video */}
+                        {/* Avatar Area */}
                         <div className="relative z-10 flex flex-col items-center justify-center w-full h-full">
-                            {briefingStatus === 'playing' && briefingVideoUrl ? (
-                                <video
-                                    ref={videoRef}
-                                    src={briefingVideoUrl}
-                                    className="w-full h-full object-cover rounded-3xl"
-                                    onEnded={handleBriefingEnded}
-                                    controls={false}
-                                    autoPlay
-                                    playsInline
+                            <div className={`relative w-64 h-64 md:w-80 md:h-80 rounded-full overflow-hidden mb-6 transition-all duration-300 ${isSpeaking ? 'scale-105 shadow-glow ring-4 ring-primary/50' : 'ring-1 ring-white/10'}`}>
+                                <img
+                                    src="/avatar.png"
+                                    alt="AI Interviewer"
+                                    className="w-full h-full object-cover"
                                 />
-                            ) : (
-                                <div className={`relative w-64 h-64 md:w-80 md:h-80 rounded-full overflow-hidden mb-6 transition-all duration-300 ${isSpeaking ? 'scale-105 shadow-glow ring-4 ring-primary/50' : 'ring-1 ring-white/10'}`}>
-                                    <img
-                                        src="/avatar.png"
-                                        alt={context.avatarName || process.env.NEXT_PUBLIC_PREFERRED_AVATAR_NAME || "AI Interviewer"}
-                                        className="w-full h-full object-cover"
-                                    />
-                                    {/* Speaking Overlay Animation */}
-                                    {isSpeaking && (
-                                        <div className="absolute inset-0 bg-primary/10 animate-pulse"></div>
-                                    )}
-                                </div>
-                            )}
+                                {/* Speaking Overlay Animation */}
+                                {isSpeaking && (
+                                    <div className="absolute inset-0 bg-primary/10 animate-pulse"></div>
+                                )}
+                            </div>
 
-                            {briefingStatus !== 'playing' && (
-                                <div className="text-center space-y-2">
-                                    <h3 className="text-xl font-semibold text-white">
-                                        {context.avatarName || process.env.NEXT_PUBLIC_PREFERRED_AVATAR_NAME || "AI Interviewer"}
-                                    </h3>
-                                    <p className={`text-sm font-medium transition-colors duration-300 ${isSpeaking ? 'text-primary' : 'text-gray-500'}`}>
-                                        {status === "connected" ? (isSpeaking ? "Speaking..." : "Listening...") : (
-                                            briefingStatus === 'generating' ? "Preparing your briefing..." :
-                                                briefingStatus === 'ready' ? "Briefing Ready" : "Ready to start"
-                                        )}
-                                    </p>
-                                </div>
-                            )}
+                            <div className="text-center space-y-2">
+                                <h3 className="text-xl font-semibold text-white">
+                                    AI Interviewer
+                                </h3>
+                                <p className={`text-sm font-medium transition-colors duration-300 ${isSpeaking ? 'text-primary' : 'text-gray-500'}`}>
+                                    {status === "connected" ? (isSpeaking ? "Speaking..." : "Listening...") : (
+                                        status === "connecting" ? "Connecting..." : "Disconnected"
+                                    )}
+                                </p>
+                            </div>
                         </div>
 
-                        {/* Overlay Actions */}
-                        {status !== "connected" && briefingStatus !== 'playing' && (
+                        {/* Error Overlay */}
+                        {status === "error" && realtimeError && (
                             <div className="absolute inset-0 bg-dark-950/60 backdrop-blur-sm flex items-center justify-center z-20">
-                                {briefingStatus === 'generating' ? (
-                                    <div className="flex flex-col items-center space-y-4 w-full max-w-xs">
-                                        <Loader2 className="w-10 h-10 animate-spin text-primary" />
-                                        <div className="space-y-1 text-center w-full">
-                                            <p className="text-sm font-medium text-gray-300">Generating personalized briefing...</p>
-                                            <div className="w-full bg-dark-700 rounded-full h-1.5">
-                                                <div
-                                                    className="bg-primary h-1.5 rounded-full transition-all duration-500 ease-out"
-                                                    style={{ width: `${generationProgress}%` }}
-                                                ></div>
-                                            </div>
-                                            <p className="text-xs text-gray-500">Synthesia AI is rendering your video ({generationProgress}%)</p>
+                                <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 max-w-md text-center">
+                                    <p className="text-sm text-red-400 font-medium mb-2">Connection Failed</p>
+                                    <p className="text-xs text-gray-400">{realtimeError}</p>
+                                    {realtimeError.includes("Microphone permission") && (
+                                        <div className="mt-3 text-xs text-gray-500">
+                                            <p>To fix this:</p>
+                                            <ol className="list-decimal list-inside mt-1 space-y-1">
+                                                <li>Click the lock icon in your browser's address bar</li>
+                                                <li>Allow microphone access</li>
+                                                <li>Refresh the page and try again</li>
+                                            </ol>
                                         </div>
-                                    </div>
-                                ) : briefingStatus === 'ready' ? (
-                                    <div className="flex flex-col items-center space-y-3">
-                                        {autoplayError && <p className="text-xs text-red-400">{autoplayError}</p>}
-                                        <button
-                                            onClick={handlePlayBriefing}
-                                            className="btn-primary py-4 px-10 text-lg flex items-center space-x-3 shadow-2xl hover:shadow-primary/50"
-                                        >
-                                            <Play className="w-6 h-6 fill-current" />
-                                            <span>Watch Briefing</span>
-                                        </button>
-                                    </div>
-                                ) : briefingStatus === 'failed' ? (
-                                    <div className="flex flex-col items-center space-y-4 text-center max-w-sm">
-                                        <p className="text-sm text-red-400 font-medium">Could not generate briefing video.</p>
-                                        {briefingError && (
-                                            <p className="text-xs text-gray-400 whitespace-pre-wrap">{briefingError}</p>
-                                        )}
-                                        <button
-                                            onClick={() => context && generateBriefing(context)}
-                                            className="btn-primary py-3 px-8 text-sm shadow-lg hover:shadow-primary/40"
-                                        >
-                                            Retry Briefing
-                                        </button>
-                                        <button
-                                            onClick={handleStart}
-                                            className="text-xs text-gray-500 underline decoration-dotted hover:text-gray-300"
-                                        >
-                                            Skip briefing and start interview
-                                        </button>
-                                    </div>
-                                ) : (
-                                    <div className="flex flex-col items-center space-y-4">
-                                        {status === "error" && realtimeError && (
-                                            <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 max-w-md text-center">
-                                                <p className="text-sm text-red-400 font-medium mb-2">Connection Failed</p>
-                                                <p className="text-xs text-gray-400">{realtimeError}</p>
-                                                {realtimeError.includes("Microphone permission") && (
-                                                    <div className="mt-3 text-xs text-gray-500">
-                                                        <p>To fix this:</p>
-                                                        <ol className="list-decimal list-inside mt-1 space-y-1">
-                                                            <li>Click the lock icon in your browser's address bar</li>
-                                                            <li>Allow microphone access</li>
-                                                            <li>Refresh the page and try again</li>
-                                                        </ol>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
-                                        <button
-                                            onClick={handleStart}
-                                            disabled={status === "connecting"}
-                                            className="btn-primary py-4 px-10 text-lg flex items-center space-x-3 shadow-2xl hover:shadow-primary/50 disabled:opacity-50 disabled:cursor-not-allowed"
-                                        >
-                                            {status === "connecting" ? (
-                                                <>
-                                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                                                    <span>Connecting...</span>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Mic className="w-6 h-6" />
-                                                    <span>Start Interview</span>
-                                                </>
-                                            )}
-                                        </button>
-                                    </div>
-                                )}
+                                    )}
+                                </div>
                             </div>
                         )}
                     </div>

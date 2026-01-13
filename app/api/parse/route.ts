@@ -44,13 +44,6 @@ export async function POST(req: NextRequest) {
         const recruiterFile = formData.get("recruiter") as File | null;
         const extraContextFile = formData.get("extraContext") as File | null;
         const interviewType = (formData.get("interviewType") as string | null) || "screening";
-        const preferredAvatarId =
-            process.env.NEXT_PUBLIC_PREFERRED_AVATAR_ID ||
-            process.env.SYNTHESIA_DEFAULT_AVATAR ||
-            "anna_costume1_cameraA";
-        const preferredAvatarName = process.env.NEXT_PUBLIC_PREFERRED_AVATAR_NAME || "AI Interviewer";
-        const preferredBackground = process.env.SYNTHESIA_DEFAULT_BACKGROUND || null;
-
         if (!cvFile || !jdFile) {
             return NextResponse.json({ error: "Both CV and JD files are required" }, { status: 400 });
         }
@@ -125,9 +118,6 @@ export async function POST(req: NextRequest) {
         const result = JSON.parse(completion.choices[0].message.content || "{}");
         result.interviewType = interviewType;
         result.extraContext = extraContextText !== "N/A" ? extraContextText : null;
-        result.avatar = preferredAvatarId;
-        result.avatarName = preferredAvatarName;
-        result.background = preferredBackground;
 
         return NextResponse.json(result);
     } catch (error) {

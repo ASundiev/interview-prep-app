@@ -62,15 +62,7 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-dark-950 text-white flex flex-col relative overflow-hidden font-sans">
-      {/* Navbar Placeholder */}
-      <nav className="absolute top-0 w-full p-6 flex justify-between items-center z-20">
-        <div className="text-2xl font-bold tracking-tight flex items-center space-x-2">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-lg">S</span>
-          </div>
-          <span>SynthesiaPrep</span>
-        </div>
-      </nav>
+
 
       {/* Hero Background */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none">
@@ -231,6 +223,28 @@ export default function Home() {
                 </div>
               </div>
 
+              {/* Extra Context Upload */}
+              <div className="space-y-2 relative z-10">
+                <label className="block text-xs font-medium text-gray-400 uppercase tracking-wider">Extra Context (Optional)</label>
+                <div className="relative group/input">
+                  <input
+                    type="file"
+                    accept=".pdf,.txt,.md,.doc,.docx"
+                    onChange={(e) => handleFileChange(e, setExtraContextFile)}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
+                  />
+                  <div className={`flex items-center justify-between px-4 py-3 rounded-xl border transition-all ${extraContextFile ? 'bg-primary/10 border-primary/50' : 'bg-dark-900/50 border-dark-700 group-hover/input:border-primary/50'}`}>
+                    <div className="flex items-center space-x-3 text-gray-300">
+                      <div className={`p-2 rounded-lg ${extraContextFile ? 'bg-primary text-white' : 'bg-dark-800 text-gray-500'}`}>
+                        <FileText className="w-4 h-4" />
+                      </div>
+                      <span className="text-sm font-medium truncate max-w-[180px]">{extraContextFile ? extraContextFile.name : "Upload file"}</span>
+                    </div>
+                    {extraContextFile && <CheckCircle2 className="w-5 h-5 text-primary" />}
+                  </div>
+                </div>
+              </div>
+
               {/* Interview Type */}
               <div className="space-y-2 relative z-10">
                 <label className="block text-xs font-medium text-gray-400 uppercase tracking-wider">Interview Type</label>
@@ -248,29 +262,7 @@ export default function Home() {
                     <ArrowRight className="w-4 h-4 rotate-90" />
                   </div>
                 </div>
-                <p className="text-xs text-gray-500">We’ll tailor the AI’s tone and questions for this stage.</p>
-              </div>
-
-              {/* Extra Context Upload */}
-              <div className="space-y-2 relative z-10">
-                <label className="block text-xs font-medium text-gray-400 uppercase tracking-wider">Extra Context (Optional)</label>
-                <div className="relative group/input">
-                  <input
-                    type="file"
-                    accept=".pdf,.doc,.docx,.txt"
-                    onChange={(e) => handleFileChange(e, setExtraContextFile)}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
-                  />
-                  <div className={`flex items-center justify-between px-4 py-3 rounded-xl border transition-all ${extraContextFile ? 'bg-primary/10 border-primary/50' : 'bg-dark-900/50 border-dark-700 group-hover/input:border-primary/50'}`}>
-                    <div className="flex items-center space-x-3 text-gray-300">
-                      <div className={`p-2 rounded-lg ${extraContextFile ? 'bg-primary text-white' : 'bg-dark-800 text-gray-500'}`}>
-                        <FileText className="w-4 h-4" />
-                      </div>
-                      <span className="text-sm font-medium truncate max-w-[180px]">{extraContextFile ? extraContextFile.name : "Upload File"}</span>
-                    </div>
-                    {extraContextFile && <CheckCircle2 className="w-5 h-5 text-primary" />}
-                  </div>
-                </div>
+                <p className="text-xs text-gray-500">We'll tailor the AI's tone and questions for this stage.</p>
               </div>
 
               <button

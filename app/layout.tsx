@@ -5,7 +5,7 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
-  title: "SynthesiaPrep - AI Interview Coach",
+  title: "InterviewPrep - AI Interview Coach",
   description: "Master your next interview with AI-powered mock interviews.",
 };
 
