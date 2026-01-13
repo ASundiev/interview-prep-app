@@ -5,11 +5,11 @@ import { useRouter } from "next/navigation";
 import { CheckCircle2, XCircle, TrendingUp, ArrowRight, Loader2, RefreshCw, Award, Target, Zap } from "lucide-react";
 
 interface AnalysisResult {
-    score: number;
-    summary: string;
+    overallScore: number;
+    feedbackSummary: string;
     strengths: string[];
     weaknesses: string[];
-    improvements: string[];
+    improvementTips: string[];
 }
 
 export default function FeedbackPage() {
@@ -45,11 +45,11 @@ export default function FeedbackPage() {
                 console.error(error);
                 // Mock data for fallback
                 setAnalysis({
-                    score: 85,
-                    summary: "Great job! You demonstrated strong technical knowledge and communicated your ideas clearly. There are a few areas where you could be more concise.",
+                    overallScore: 85,
+                    feedbackSummary: "Great job! You demonstrated strong technical knowledge and communicated your ideas clearly. There are a few areas where you could be more concise.",
                     strengths: ["Clear communication", "Good technical depth", "Structured answers"],
                     weaknesses: ["Could be more concise", "Missed some STAR method opportunities"],
-                    improvements: ["Practice STAR method", "Focus on business impact", "Ask more clarifying questions"]
+                    improvementTips: ["Practice STAR method", "Focus on business impact", "Ask more clarifying questions"]
                 });
             } finally {
                 setIsLoading(false);
@@ -85,7 +85,7 @@ export default function FeedbackPage() {
                     <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
                         Your Interview <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-purple-400">Performance</span>
                     </h1>
-                    <p className="text-lg text-gray-400 max-w-2xl mx-auto leading-relaxed">{analysis.summary}</p>
+                    <p className="text-lg text-gray-400 max-w-2xl mx-auto leading-relaxed">{analysis.feedbackSummary}</p>
                 </header>
 
                 {/* Score Card */}
@@ -115,12 +115,12 @@ export default function FeedbackPage() {
                                         fill="transparent"
                                         strokeLinecap="round"
                                         strokeDasharray={553}
-                                        strokeDashoffset={553 - (553 * analysis.score) / 100}
+                                        strokeDashoffset={553 - (553 * analysis.overallScore) / 100}
                                         className={`text-primary transition-all duration-1000 ease-out`}
                                     />
                                 </svg>
                                 <div className="absolute flex flex-col items-center">
-                                    <span className="text-6xl font-bold tracking-tighter">{analysis.score}</span>
+                                    <span className="text-6xl font-bold tracking-tighter">{analysis.overallScore}</span>
                                     <span className="text-sm text-gray-400 mt-1">/ 100</span>
                                 </div>
                             </div>
@@ -181,7 +181,7 @@ export default function FeedbackPage() {
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            {analysis.improvements.map((item, i) => (
+                            {analysis.improvementTips.map((item, i) => (
                                 <div key={i} className="bg-dark-900/50 border border-white/5 p-6 rounded-2xl hover:border-primary/30 transition-colors group">
                                     <div className="flex items-center space-x-4 mb-4">
                                         <span className="w-8 h-8 rounded-full bg-dark-800 border border-white/10 flex items-center justify-center text-sm font-bold text-gray-400 group-hover:text-primary group-hover:border-primary/50 transition-all">

@@ -10,15 +10,7 @@ Your OpenAI API key for document parsing, interview analysis, and realtime conve
 
 ## Optional Environment Variables
 
-### Synthesia (Optional - app works without it)
-- `SYNTHESIA_API_KEY` - Synthesia API key for video briefing generation
-- `SYNTHESIA_DEFAULT_AVATAR` - Default avatar ID
-- `SYNTHESIA_DEFAULT_BACKGROUND` - Default background ID
-- `SYNTHESIA_TEST_MODE` - Set to `"true"` for test mode
-
 ### Customization (Optional)
-- `NEXT_PUBLIC_PREFERRED_AVATAR_ID` - Avatar ID for the interview
-- `NEXT_PUBLIC_PREFERRED_AVATAR_NAME` - Display name for the AI interviewer
 - `NEXT_PUBLIC_OPENAI_REALTIME_MODEL` - OpenAI Realtime model to use
 
 ## Local Development Setup
