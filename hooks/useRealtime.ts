@@ -22,12 +22,16 @@ export function useRealtime() {
         };
     }, []);
 
-    const connect = async () => {
+    const connect = async (context?: any) => {
         setStatus("connecting");
         setError(null);
         try {
             // 1. Get ephemeral token
-            const tokenRes = await fetch("/api/session", { method: "POST" });
+            const tokenRes = await fetch("/api/session", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ context })
+            });
             if (!tokenRes.ok) {
                 const errorData = await tokenRes.json().catch(() => ({ error: "Failed to create session" }));
                 throw new Error(errorData.error || "Failed to create session. Please check your OpenAI API key.");

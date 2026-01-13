@@ -42,6 +42,7 @@ export async function POST(req: NextRequest) {
         const cvFile = formData.get("cv") as File | null;
         const jdFile = formData.get("jd") as File | null;
         const recruiterFile = formData.get("recruiter") as File | null;
+        const extraContextFile = formData.get("extraContext") as File | null;
         const interviewType = (formData.get("interviewType") as string | null) || "screening";
         const preferredAvatarId =
             process.env.NEXT_PUBLIC_PREFERRED_AVATAR_ID ||
@@ -66,6 +67,12 @@ export async function POST(req: NextRequest) {
             recruiterText = await parseFile(recruiterFile);
         }
 
+        // Parse Extra Context if available
+        let extraContextText = "N/A";
+        if (extraContextFile) {
+            extraContextText = await parseFile(extraContextFile);
+        }
+
         // Use OpenAI to structure the data
         const completion = await openai.chat.completions.create({
             model: "gpt-4o",
@@ -73,9 +80,11 @@ export async function POST(req: NextRequest) {
                 {
                     role: "system",
                     content: `You are an expert recruiter and interview coach. 
-          Analyze the provided Candidate CV, Job Description, and optionally a Recruiter's LinkedIn Profile (PDF text).
+          Analyze the provided Candidate CV, Job Description, and optionally a Recruiter's LinkedIn Profile (PDF text) and Extra Context documents.
           
           If a Recruiter Profile is provided, analyze their background (technical vs HR), tone, and recent activity to tailor the interview strategy.
+
+          If Extra Context is provided (e.g., previous rejection feedback, company context, desired strategy), incorporate it into the interview questions and strategy.
           
           Extract key information to prepare for a mock interview.
           
@@ -103,6 +112,9 @@ export async function POST(req: NextRequest) {
           Recruiter Profile Content:
           ${recruiterText.substring(0, 10000)}
           
+          Extra Context Content:
+          ${extraContextText.substring(0, 10000)}
+          
           Interview Type: ${interviewType}
           `,
                 },
@@ -112,6 +124,7 @@ export async function POST(req: NextRequest) {
 
         const result = JSON.parse(completion.choices[0].message.content || "{}");
         result.interviewType = interviewType;
+        result.extraContext = extraContextText !== "N/A" ? extraContextText : null;
         result.avatar = preferredAvatarId;
         result.avatarName = preferredAvatarName;
         result.background = preferredBackground;
