@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, XCircle, TrendingUp, ArrowRight, Loader2, RefreshCw, Award, Target, Zap } from "lucide-react";
+import { CheckCircle2, XCircle, TrendingUp, ArrowRight, Loader2, RefreshCw, Award, Target, Zap, Download } from "lucide-react";
+import { generateTranscriptMarkdown } from "@/utils/generateTranscriptMarkdown";
 
 interface AnalysisResult {
     overallScore: number;
@@ -12,20 +13,31 @@ interface AnalysisResult {
     improvementTips: string[];
 }
 
+interface InterviewContext {
+    candidateName?: string;
+    roleTitle?: string;
+    interviewType?: "screening" | "hiring-manager" | "cultural-fit";
+    companyContext?: string;
+}
+
 export default function FeedbackPage() {
     const router = useRouter();
     const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [context, setContext] = useState<InterviewContext | null>(null);
 
     useEffect(() => {
         const analyzeInterview = async () => {
             const transcript = localStorage.getItem("interviewTranscript");
-            const context = localStorage.getItem("interviewContext");
+            const storedContext = localStorage.getItem("interviewContext");
 
-            if (!transcript || !context) {
+            if (!transcript || !storedContext) {
                 router.push("/");
                 return;
             }
+
+            const parsedContext = JSON.parse(storedContext);
+            setContext(parsedContext);
 
             try {
                 const response = await fetch("/api/analyze", {
@@ -33,7 +45,7 @@ export default function FeedbackPage() {
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         transcript: JSON.parse(transcript),
-                        context: JSON.parse(context),
+                        context: parsedContext,
                     }),
                 });
 
@@ -58,6 +70,22 @@ export default function FeedbackPage() {
 
         analyzeInterview();
     }, [router]);
+
+    const handleDownload = () => {
+        const transcriptRaw = localStorage.getItem("interviewTranscript");
+        const transcript = transcriptRaw ? JSON.parse(transcriptRaw) : [];
+        const markdown = generateTranscriptMarkdown(transcript, context || {}, analysis);
+
+        const blob = new Blob([markdown], { type: "text/markdown" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `interview-report-${new Date().toISOString().split("T")[0]}.md`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
 
     if (isLoading) {
         return (
@@ -196,7 +224,14 @@ export default function FeedbackPage() {
                     </div>
                 </div>
 
-                <div className="flex justify-center pt-8 pb-12">
+                <div className="flex justify-center gap-4 pt-8 pb-12">
+                    <button
+                        onClick={handleDownload}
+                        className="py-4 px-10 text-lg flex items-center space-x-3 rounded-xl border border-white/10 bg-dark-800 hover:bg-dark-700 transition-colors shadow-lg"
+                    >
+                        <Download className="w-5 h-5" />
+                        <span>Download Report</span>
+                    </button>
                     <button
                         onClick={() => router.push("/")}
                         className="btn-primary py-4 px-10 text-lg flex items-center space-x-3 shadow-2xl hover:shadow-primary/50"
