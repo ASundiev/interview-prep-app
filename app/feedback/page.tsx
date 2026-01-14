@@ -76,15 +76,27 @@ export default function FeedbackPage() {
         const transcript = transcriptRaw ? JSON.parse(transcriptRaw) : [];
         const markdown = generateTranscriptMarkdown(transcript, context || {}, analysis);
 
-        const blob = new Blob([markdown], { type: "text/markdown" });
+        // Using application/octet-stream is more reliable for forcing the browser 
+        // to respect the 'download' attribute and filename extension.
+        const blob = new Blob([markdown], { type: "application/octet-stream" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
+
+        a.style.display = "none";
         a.href = url;
-        a.download = `interview-report-${new Date().toISOString().split("T")[0]}.md`;
+        const dateStr = new Date().toISOString().split("T")[0];
+        a.download = `interview-report-${dateStr}.md`;
+
         document.body.appendChild(a);
         a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+
+        // Increased delay to ensure the browser handles the download before cleanup
+        setTimeout(() => {
+            if (document.body.contains(a)) {
+                document.body.removeChild(a);
+            }
+            URL.revokeObjectURL(url);
+        }, 1000);
     };
 
     if (isLoading) {
