@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
-import { Mic, MicOff, PhoneOff, Play, MessageSquare, Loader2 } from "lucide-react";
+import { useEffect, useState, useRef } from "react";
+import { Mic, MicOff, Send, X, Loader2, Volume2, VolumeX, MessageSquare } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useRealtime } from "@/hooks/useRealtime";
+import { useChatInterview } from "@/hooks/useChatInterview";
+import { useSpeechToText } from "@/hooks/useSpeechToText";
 
 interface InterviewContext {
     candidateName: string;
@@ -12,172 +13,308 @@ interface InterviewContext {
     companyContext?: string;
     candidateSummary?: string;
     extraContext?: string | null;
-    avatar?: string;
-    avatarName?: string;
-    background?: string | null;
     interviewType?: "screening" | "hiring-manager" | "cultural-fit";
 }
+
+type InputState = "ready" | "recording" | "editing";
 
 export default function InterviewPage() {
     const router = useRouter();
     const [context, setContext] = useState<InterviewContext | null>(null);
-    const [isMicOn, setIsMicOn] = useState(true);
-    const { connect, disconnect, status, isSpeaking, items, error: realtimeError } = useRealtime();
+    const [inputState, setInputState] = useState<InputState>("ready");
+    const [editableText, setEditableText] = useState("");
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-    const handleStart = useCallback((ctx: InterviewContext) => {
-        connect(ctx);
-    }, [connect]);
+    const {
+        messages,
+        isLoading,
+        error: chatError,
+        isSpeaking,
+        sendMessage,
+        startInterview,
+        stopSpeaking,
+    } = useChatInterview();
 
+    const {
+        isListening,
+        transcript,
+        audioData,
+        error: sttError,
+        isProcessing,
+        startListening,
+        stopListening,
+        clearTranscript,
+    } = useSpeechToText();
+
+    // Initialize interview on mount
     useEffect(() => {
         const stored = localStorage.getItem("interviewContext");
         if (stored) {
             const parsedContext = JSON.parse(stored);
             setContext(parsedContext);
-            // Start interview immediately when context is available
-            handleStart(parsedContext);
+            startInterview(parsedContext);
         } else {
             router.push("/");
         }
-    }, [router, handleStart]);
+    }, [router, startInterview]);
+
+    // Auto-scroll to latest message
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, [messages]);
+
+    // Handle recording state changes
+    useEffect(() => {
+        if (isListening) {
+            setInputState("recording");
+        }
+    }, [isListening]);
+
+    // When recording stops, transition based on whether we have a transcript
+    useEffect(() => {
+        if (!isListening && inputState === "recording") {
+            if (transcript && transcript.trim()) {
+                // Has transcript - go to editing mode
+                setEditableText(transcript);
+                setInputState("editing");
+                clearTranscript();
+                // Focus textarea
+                setTimeout(() => textareaRef.current?.focus(), 100);
+            } else {
+                // No transcript - go back to ready
+                setInputState("ready");
+                clearTranscript();
+            }
+        }
+    }, [isListening, inputState, transcript, clearTranscript]);
+
+    const handleMicClick = () => {
+        if (inputState === "recording") {
+            stopListening();
+        } else {
+            setEditableText("");
+            clearTranscript();
+            startListening();
+        }
+    };
+
+    const handleSend = async () => {
+        if (!editableText.trim() || isLoading) return;
+
+        const text = editableText.trim();
+        setEditableText("");
+        setInputState("ready");
+        await sendMessage(text);
+    };
+
+    const handleDiscard = () => {
+        setEditableText("");
+        setInputState("ready");
+        clearTranscript();
+    };
 
     const handleEndInterview = () => {
-        disconnect();
-        localStorage.setItem("interviewTranscript", JSON.stringify(items));
+        stopSpeaking();
+        localStorage.setItem("interviewTranscript", JSON.stringify(messages));
         router.push("/feedback");
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            handleSend();
+        }
     };
 
     if (!context) return null;
 
+    const error = chatError || sttError;
+
     return (
-        <main className="min-h-screen bg-dark-950 text-white flex flex-col p-4 md:p-6 font-sans overflow-hidden">
+        <main className="min-h-screen bg-dark-950 text-white flex flex-col font-sans">
             {/* Header */}
-            <header className="flex justify-between items-center mb-6 px-2">
+            <header className="flex-shrink-0 flex justify-between items-center px-4 md:px-8 py-4 border-b border-white/5 bg-dark-900/50 backdrop-blur-sm">
                 <div className="flex items-center space-x-4">
                     <div className="w-10 h-10 bg-dark-800 rounded-xl flex items-center justify-center border border-white/5">
-                        <span className="font-bold text-primary">AI</span>
+                        <MessageSquare className="w-5 h-5 text-primary" />
                     </div>
                     <div>
                         <h1 className="text-lg font-bold text-white leading-tight">Mock Interview</h1>
                         <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">{context.roleTitle}</p>
                     </div>
                 </div>
-                <div className="flex items-center space-x-4">
-                    {status === "connected" && (
-                        <div className="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/20">
-                            <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
-                            <span className="text-xs text-red-400 font-bold uppercase tracking-wide">Live Session</span>
-                        </div>
-                    )}
-                </div>
+                <button
+                    onClick={handleEndInterview}
+                    className="px-4 py-2 text-sm font-medium rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-colors"
+                >
+                    End Interview
+                </button>
             </header>
 
-            {/* Main Content */}
-            <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-140px)]">
+            {/* Chat Area */}
+            <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6">
+                <div className="max-w-3xl mx-auto space-y-6">
+                    {messages.map((message, i) => (
+                        <div
+                            key={i}
+                            className={`flex ${message.role === "assistant" ? "justify-start" : "justify-end"}`}
+                        >
+                            <div
+                                className={`max-w-[85%] md:max-w-[75%] px-4 py-3 rounded-2xl text-sm md:text-base leading-relaxed ${message.role === "assistant"
+                                    ? "bg-dark-800 text-gray-200 rounded-tl-sm"
+                                    : "bg-primary/20 text-white rounded-tr-sm border border-primary/20"
+                                    }`}
+                            >
+                                {message.text}
+                            </div>
+                        </div>
+                    ))}
 
-                {/* Left Column: Avatar & Video (8 cols) */}
-                <div className="lg:col-span-8 flex flex-col space-y-6">
-                    {/* Main Avatar Area */}
-                    <div className="flex-1 bg-dark-800 rounded-3xl overflow-hidden relative border border-white/5 shadow-2xl flex items-center justify-center group">
-                        {/* Background Gradient */}
-                        <div className="absolute inset-0 bg-gradient-to-b from-dark-800 to-dark-900"></div>
-                        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary/5 via-transparent to-transparent opacity-50"></div>
+                    {/* Typing Indicator */}
+                    {isLoading && (
+                        <div className="flex justify-start">
+                            <div className="bg-dark-800 px-4 py-3 rounded-2xl rounded-tl-sm">
+                                <div className="flex space-x-1.5">
+                                    <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                                    <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                                    <div className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
-                        {/* Avatar Area */}
-                        <div className="relative z-10 flex flex-col items-center justify-center w-full h-full">
-                            <div className={`relative w-64 h-64 md:w-80 md:h-80 rounded-full overflow-hidden mb-6 transition-all duration-300 ${isSpeaking ? 'scale-105 shadow-glow ring-4 ring-primary/50' : 'ring-1 ring-white/10'}`}>
-                                <img
-                                    src="/avatar.png"
-                                    alt="AI Interviewer"
-                                    className="w-full h-full object-cover"
-                                />
-                                {/* Speaking Overlay Animation */}
-                                {isSpeaking && (
-                                    <div className="absolute inset-0 bg-primary/10 animate-pulse"></div>
+                    {/* Speaking Indicator */}
+                    {isSpeaking && !isLoading && (
+                        <div className="flex justify-start items-center space-x-2 text-xs text-gray-500">
+                            <Volume2 className="w-4 h-4 animate-pulse text-primary" />
+                            <span>AI is speaking...</span>
+                            <button
+                                onClick={stopSpeaking}
+                                className="text-gray-400 hover:text-white transition-colors"
+                            >
+                                <VolumeX className="w-4 h-4" />
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Error Display */}
+                    {error && (
+                        <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 text-sm text-red-400">
+                            {error}
+                        </div>
+                    )}
+
+                    <div ref={messagesEndRef} />
+                </div>
+            </div>
+
+            {/* Input Area */}
+            <div className="flex-shrink-0 border-t border-white/5 bg-dark-900/80 backdrop-blur-sm px-4 md:px-8 py-4">
+                <div className="max-w-3xl mx-auto">
+                    {/* Ready State - Large Mic Button */}
+                    {inputState === "ready" && (
+                        <div className="flex flex-col items-center space-y-3">
+                            <button
+                                onClick={handleMicClick}
+                                disabled={isLoading || isProcessing}
+                                className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-primary hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-all transform hover:scale-105 active:scale-95 shadow-glow"
+                            >
+                                <Mic className="w-7 h-7 md:w-8 md:h-8 text-white" />
+                            </button>
+                            <span className="text-xs text-gray-500">Press to speak</span>
+                        </div>
+                    )}
+
+                    {/* Recording State - Waveform */}
+                    {inputState === "recording" && (
+                        <div className="flex flex-col items-center space-y-4">
+                            <button
+                                onClick={handleMicClick}
+                                className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center transition-all animate-pulse shadow-lg shadow-red-500/30"
+                            >
+                                <MicOff className="w-7 h-7 md:w-8 md:h-8 text-white" />
+                            </button>
+
+                            {/* Real-time Waveform */}
+                            <div className="flex items-center justify-center space-x-1 h-12 w-full max-w-xs">
+                                {audioData.length > 0 ? (
+                                    audioData.map((value, i) => (
+                                        <div
+                                            key={i}
+                                            className="w-1.5 bg-primary rounded-full transition-all duration-75"
+                                            style={{
+                                                height: `${Math.max(4, value * 48)}px`,
+                                            }}
+                                        />
+                                    ))
+                                ) : (
+                                    // Placeholder animation when no audio data
+                                    Array.from({ length: 32 }).map((_, i) => (
+                                        <div
+                                            key={i}
+                                            className="w-1.5 bg-primary/50 rounded-full animate-pulse"
+                                            style={{
+                                                height: `${4 + Math.sin(i * 0.5) * 8}px`,
+                                                animationDelay: `${i * 30}ms`,
+                                            }}
+                                        />
+                                    ))
                                 )}
                             </div>
 
-                            <div className="text-center space-y-2">
-                                <h3 className="text-xl font-semibold text-white">
-                                    AI Interviewer
-                                </h3>
-                                <p className={`text-sm font-medium transition-colors duration-300 ${isSpeaking ? 'text-primary' : 'text-gray-500'}`}>
-                                    {status === "connected" ? (isSpeaking ? "Speaking..." : "Listening...") : (
-                                        status === "connecting" ? "Connecting..." : "Disconnected"
-                                    )}
-                                </p>
+                            <span className="text-xs text-red-400">Recording... Press again to stop</span>
+                        </div>
+                    )}
+
+                    {/* Processing State - Whisper Transcription */}
+                    {isProcessing && inputState === "ready" && (
+                        <div className="flex flex-col items-center space-y-4">
+                            <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-dark-800 border border-primary/50 flex items-center justify-center">
+                                <Loader2 className="w-7 h-7 md:w-8 md:h-8 text-primary animate-spin" />
                             </div>
+                            <span className="text-xs text-primary">Transcribing...</span>
                         </div>
+                    )}
 
-                        {/* Error Overlay */}
-                        {status === "error" && realtimeError && (
-                            <div className="absolute inset-0 bg-dark-950/60 backdrop-blur-sm flex items-center justify-center z-20">
-                                <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 max-w-md text-center">
-                                    <p className="text-sm text-red-400 font-medium mb-2">Connection Failed</p>
-                                    <p className="text-xs text-gray-400">{realtimeError}</p>
-                                    {realtimeError.includes("Microphone permission") && (
-                                        <div className="mt-3 text-xs text-gray-500">
-                                            <p>To fix this:</p>
-                                            <ol className="list-decimal list-inside mt-1 space-y-1">
-                                                <li>Click the lock icon in your browser's address bar</li>
-                                                <li>Allow microphone access</li>
-                                                <li>Refresh the page and try again</li>
-                                            </ol>
-                                        </div>
-                                    )}
+                    {/* Editing State - Textarea + Send */}
+                    {inputState === "editing" && (
+                        <div className="space-y-3">
+                            <div className="relative">
+                                <textarea
+                                    ref={textareaRef}
+                                    value={editableText}
+                                    onChange={(e) => setEditableText(e.target.value)}
+                                    onKeyDown={handleKeyDown}
+                                    placeholder="Edit your response if needed..."
+                                    className="w-full bg-dark-800 border border-white/10 rounded-xl px-4 py-3 pr-24 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary resize-none transition-all"
+                                    rows={3}
+                                />
+                                <div className="absolute right-2 bottom-2 flex items-center space-x-2">
+                                    <button
+                                        onClick={handleDiscard}
+                                        className="p-2 rounded-lg bg-dark-700 hover:bg-dark-600 text-gray-400 hover:text-white transition-colors"
+                                    >
+                                        <X className="w-5 h-5" />
+                                    </button>
+                                    <button
+                                        onClick={handleSend}
+                                        disabled={!editableText.trim() || isLoading}
+                                        className="p-2 rounded-lg bg-primary hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed text-white transition-colors"
+                                    >
+                                        {isLoading ? (
+                                            <Loader2 className="w-5 h-5 animate-spin" />
+                                        ) : (
+                                            <Send className="w-5 h-5" />
+                                        )}
+                                    </button>
                                 </div>
                             </div>
-                        )}
-                    </div>
-
-                    {/* Controls Bar */}
-                    <div className="h-24 bg-dark-800 rounded-3xl border border-white/5 flex items-center justify-center px-8 shadow-lg">
-                        <div className="flex items-center space-x-6">
-                            <button
-                                onClick={() => setIsMicOn(!isMicOn)}
-                                className={`p-4 rounded-2xl transition-all duration-200 ${isMicOn ? 'bg-dark-700 text-white hover:bg-dark-600' : 'bg-red-500/20 text-red-500 hover:bg-red-500/30'}`}
-                            >
-                                {isMicOn ? <Mic className="w-6 h-6" /> : <MicOff className="w-6 h-6" />}
-                            </button>
-                            <div className="w-px h-10 bg-white/10 mx-2"></div>
-                            <button
-                                onClick={handleEndInterview}
-                                className="p-4 rounded-2xl bg-red-500 hover:bg-red-600 text-white transition-all shadow-lg hover:shadow-red-500/30"
-                            >
-                                <PhoneOff className="w-6 h-6" />
-                            </button>
+                            <p className="text-xs text-gray-500 text-center">
+                                Press Enter to send, Shift+Enter for new line
+                            </p>
                         </div>
-                    </div>
-                </div>
-
-                {/* Right Column: Transcript */}
-                <div className="lg:col-span-4 flex flex-col space-y-6">
-                    {/* Transcript */}
-                    <div className="flex-1 bg-dark-800 rounded-3xl border border-white/5 shadow-lg flex flex-col overflow-hidden">
-                        <div className="p-4 border-b border-white/5 bg-dark-800/50 backdrop-blur-sm flex items-center space-x-2">
-                            <MessageSquare className="w-4 h-4 text-primary" />
-                            <span className="text-sm font-semibold text-gray-300">Live Transcript</span>
-                        </div>
-                        <div className="flex-1 p-4 overflow-y-auto space-y-4 scrollbar-thin scrollbar-thumb-dark-700 scrollbar-track-transparent">
-                            {items.length === 0 && (
-                                <div className="h-full flex items-center justify-center text-center p-4">
-                                    <p className="text-sm text-gray-600">Conversation will appear here...</p>
-                                </div>
-                            )}
-                            {items.map((item, i) => (
-                                <div key={i} className={`flex flex-col ${item.role === 'assistant' ? 'items-start' : 'items-end'}`}>
-                                    <div className={`max-w-[85%] p-3 rounded-2xl text-sm leading-relaxed ${item.role === 'assistant'
-                                        ? 'bg-dark-700 text-gray-200 rounded-tl-none'
-                                        : 'bg-primary/20 text-primary-100 rounded-tr-none border border-primary/10'
-                                        }`}>
-                                        {item.text}
-                                    </div>
-                                    <span className="text-[10px] text-gray-600 mt-1 px-1">
-                                        {item.role === 'assistant' ? 'AI Interviewer' : 'You'}
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+                    )}
                 </div>
             </div>
         </main>
