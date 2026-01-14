@@ -58,6 +58,7 @@ export function useSpeechToText(): SpeechToTextResult {
     const transcribeAudio = useCallback(async (audioBlob: Blob) => {
         setIsProcessing(true);
         setError(null);
+        console.log("Starting transcription...");
 
         try {
             // Create FormData with the audio file
@@ -69,18 +70,21 @@ export function useSpeechToText(): SpeechToTextResult {
                 body: formData,
             });
 
+            console.log("Transcription response status:", response.status);
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({ error: "Transcription failed" }));
                 throw new Error(errorData.error || "Failed to transcribe audio");
             }
 
             const data = await response.json();
+            console.log("Transcription successful, text length:", data.text?.length || 0);
             setTranscript(data.text || "");
         } catch (err: any) {
             console.error("Transcription error:", err);
             setError(err.message || "Failed to transcribe audio");
         } finally {
             setIsProcessing(false);
+            console.log("Transcription processing finished");
         }
     }, []);
 
@@ -114,7 +118,11 @@ export function useSpeechToText(): SpeechToTextResult {
             mediaRecorderRef.current.onstop = async () => {
                 if (audioChunksRef.current.length > 0) {
                     const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+                    console.log("Audio blob created, size:", audioBlob.size);
                     await transcribeAudio(audioBlob);
+                } else {
+                    console.warn("No audio chunks collected");
+                    setIsProcessing(false);
                 }
             };
 
@@ -140,6 +148,7 @@ export function useSpeechToText(): SpeechToTextResult {
 
         // Stop MediaRecorder
         if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+            setIsProcessing(true);
             mediaRecorderRef.current.stop();
         }
 

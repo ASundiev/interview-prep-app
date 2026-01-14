@@ -35,6 +35,7 @@ export function useChatInterview(): ChatInterviewResult {
     const [error, setError] = useState<string | null>(null);
 
     const contextRef = useRef<InterviewContext | null>(null);
+    const startTimeRef = useRef<string | null>(null);
     const { speak, stop: stopSpeaking, isPlaying: isSpeaking, isLoading: isTTSLoading } = useTextToSpeech();
 
     const sendMessage = useCallback(async (text: string) => {
@@ -57,6 +58,8 @@ export function useChatInterview(): ChatInterviewResult {
                     message: text.trim(),
                     history: [...messages, userMessage],
                     context: contextRef.current,
+                    questionCount: messages.filter(m => m.role === "assistant").length,
+                    startTime: startTimeRef.current,
                 }),
             });
 
@@ -97,9 +100,11 @@ export function useChatInterview(): ChatInterviewResult {
                     isStart: true,
                     history: [],
                     context,
+                    startTime: new Date().toISOString(),
                 }),
             });
 
+            startTimeRef.current = new Date().toISOString();
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({ error: "Failed to start interview" }));
                 throw new Error(errorData.error || "Failed to start interview");

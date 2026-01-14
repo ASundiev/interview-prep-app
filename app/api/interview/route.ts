@@ -21,7 +21,27 @@ interface InterviewContext {
     recruiterStrategy?: string;
 }
 
-function buildSystemPrompt(context: InterviewContext): string {
+function buildSystemPrompt(context: InterviewContext, constraints?: { questionCount?: number; startTime?: string }): string {
+    let constraintInstructions = "";
+    if (constraints) {
+        const { questionCount, startTime } = constraints;
+        const elapsedMinutes = startTime ? (Date.now() - new Date(startTime).getTime()) / 60000 : 0;
+
+        if (questionCount !== undefined) {
+            if (questionCount >= 11) {
+                constraintInstructions += "\n- **URGENT**: The 10-question limit has been reached. You MUST conclude the interview immediately. Thank the candidate and end the session.";
+            } else if (questionCount >= 9) {
+                const remaining = 11 - questionCount;
+                constraintInstructions += `\n- **CONSTRAINT**: You have asked ${questionCount - 1} questions. You have ${remaining} question${remaining > 1 ? "s" : ""} remaining. Start wrapping up naturally.`;
+            }
+        }
+
+        if (elapsedMinutes >= 30) {
+            constraintInstructions += "\n- **URGENT**: The 30-minute time limit has been reached. You MUST conclude the interview immediately. Thank the candidate and end the session.";
+        } else if (elapsedMinutes >= 25) {
+            constraintInstructions += `\n- **CONSTRAINT**: You have been interviewing for ${Math.floor(elapsedMinutes)} minutes. You must conclude the interview in the next few minutes.`;
+        }
+    }
     return `You are a professional, high-stakes interviewer. Your goal is to conduct a realistic, rigorous mock interview.
 
 ## Communication Style:
@@ -52,13 +72,14 @@ The user has provided their CV, a Job Description, and optionally recruiter prof
 [Recruiter Context]: ${context?.recruiterStrategy || "Professional recruiter"}
 [Extra Context / Feedback]: ${context?.extraContext || "None provided"}
 [Interview Focus]: ${context?.companyContext || "General interview"}
+${constraintInstructions ? `\n## ACTIVE CONSTRAINTS:${constraintInstructions}` : ""}
 
 When starting a new interview, introduce yourself briefly and ask the candidate to provide their short intro pitch (elevator pitch).`;
 }
 
 export async function POST(req: NextRequest) {
     try {
-        const { message, history, context, isStart } = await req.json();
+        const { message, history, context, isStart, questionCount, startTime } = await req.json();
 
         // Check if API key is configured
         if (!process.env.OPENAI_API_KEY) {
@@ -68,7 +89,7 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        const systemPrompt = buildSystemPrompt(context || {});
+        const systemPrompt = buildSystemPrompt(context || {}, { questionCount, startTime });
 
         // Build messages array
         const messages: { role: "system" | "user" | "assistant"; content: string }[] = [

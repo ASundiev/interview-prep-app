@@ -71,23 +71,21 @@ export default function InterviewPage() {
         }
     }, [isListening]);
 
-    // When recording stops, transition based on whether we have a transcript
+    // When recording stops and processing finishes, transition based on whether we have a transcript
     useEffect(() => {
-        if (!isListening && inputState === "recording") {
+        if (!isListening && !isProcessing && inputState === "recording") {
+            console.log("Transcription finished, checking transcript. Length:", transcript?.length || 0);
             if (transcript && transcript.trim()) {
-                // Has transcript - go to editing mode
                 setEditableText(transcript);
                 setInputState("editing");
                 clearTranscript();
-                // Focus textarea
-                setTimeout(() => textareaRef.current?.focus(), 100);
             } else {
-                // No transcript - go back to ready
+                console.warn("No transcript found, resetting to ready state");
                 setInputState("ready");
                 clearTranscript();
             }
         }
-    }, [isListening, inputState, transcript, clearTranscript]);
+    }, [isListening, isProcessing, inputState, transcript, clearTranscript]);
 
     const handleMicClick = () => {
         if (inputState === "recording") {
@@ -212,68 +210,69 @@ export default function InterviewPage() {
             {/* Input Area */}
             <div className="flex-shrink-0 border-t border-white/5 bg-dark-900/80 backdrop-blur-sm px-4 md:px-8 py-4">
                 <div className="max-w-3xl mx-auto">
-                    {/* Ready State - Large Mic Button */}
-                    {inputState === "ready" && (
-                        <div className="flex flex-col items-center space-y-3">
-                            <button
-                                onClick={handleMicClick}
-                                disabled={isLoading || isProcessing}
-                                className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-primary hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-all transform hover:scale-105 active:scale-95 shadow-glow"
-                            >
-                                <Mic className="w-7 h-7 md:w-8 md:h-8 text-white" />
-                            </button>
-                            <span className="text-xs text-gray-500">Press to speak</span>
-                        </div>
-                    )}
-
-                    {/* Recording State - Waveform */}
-                    {inputState === "recording" && (
-                        <div className="flex flex-col items-center space-y-4">
-                            <button
-                                onClick={handleMicClick}
-                                className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center transition-all animate-pulse shadow-lg shadow-red-500/30"
-                            >
-                                <MicOff className="w-7 h-7 md:w-8 md:h-8 text-white" />
-                            </button>
-
-                            {/* Real-time Waveform */}
-                            <div className="flex items-center justify-center space-x-1 h-12 w-full max-w-xs">
-                                {audioData.length > 0 ? (
-                                    audioData.map((value, i) => (
-                                        <div
-                                            key={i}
-                                            className="w-1.5 bg-primary rounded-full transition-all duration-75"
-                                            style={{
-                                                height: `${Math.max(4, value * 48)}px`,
-                                            }}
-                                        />
-                                    ))
+                    {/* Interaction State - Ready, Recording, or Processing */}
+                    {(inputState === "ready" || inputState === "recording") && (
+                        <div className="flex flex-col items-center">
+                            <div className="relative w-16 h-16 md:w-20 md:h-20 mb-4">
+                                {isProcessing ? (
+                                    <div className="absolute inset-0 rounded-full bg-dark-800 border border-primary/30 flex items-center justify-center shadow-lg shadow-primary/10">
+                                        <Loader2 className="w-7 h-7 md:w-8 md:h-8 text-primary animate-spin" />
+                                    </div>
+                                ) : isListening ? (
+                                    <button
+                                        onClick={handleMicClick}
+                                        className="absolute inset-0 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center transition-all animate-pulse shadow-lg shadow-red-500/30"
+                                    >
+                                        <MicOff className="w-7 h-7 md:w-8 md:h-8 text-white" />
+                                    </button>
                                 ) : (
-                                    // Placeholder animation when no audio data
-                                    Array.from({ length: 32 }).map((_, i) => (
-                                        <div
-                                            key={i}
-                                            className="w-1.5 bg-primary/50 rounded-full animate-pulse"
-                                            style={{
-                                                height: `${4 + Math.sin(i * 0.5) * 8}px`,
-                                                animationDelay: `${i * 30}ms`,
-                                            }}
-                                        />
-                                    ))
+                                    <button
+                                        onClick={handleMicClick}
+                                        disabled={isLoading}
+                                        className="absolute inset-0 rounded-full bg-primary hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-all transform hover:scale-105 active:scale-95 shadow-glow"
+                                    >
+                                        <Mic className="w-7 h-7 md:w-8 md:h-8 text-white" />
+                                    </button>
                                 )}
                             </div>
 
-                            <span className="text-xs text-red-400">Recording... Press again to stop</span>
-                        </div>
-                    )}
-
-                    {/* Processing State - Whisper Transcription */}
-                    {isProcessing && inputState === "ready" && (
-                        <div className="flex flex-col items-center space-y-4">
-                            <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-dark-800 border border-primary/50 flex items-center justify-center">
-                                <Loader2 className="w-7 h-7 md:w-8 md:h-8 text-primary animate-spin" />
+                            {/* Status and Feedback area */}
+                            <div className="flex flex-col items-center min-h-[60px]">
+                                {isProcessing ? (
+                                    <span className="text-xs font-semibold text-primary animate-pulse uppercase tracking-wider">Transcribing...</span>
+                                ) : isListening ? (
+                                    <>
+                                        {/* Real-time Waveform */}
+                                        <div className="flex items-center justify-center space-x-1 h-8 mb-3">
+                                            {audioData.length > 0 ? (
+                                                audioData.map((value, i) => (
+                                                    <div
+                                                        key={i}
+                                                        className="w-1.5 bg-primary rounded-full transition-all duration-75"
+                                                        style={{
+                                                            height: `${Math.max(4, value * 32)}px`,
+                                                        }}
+                                                    />
+                                                ))
+                                            ) : (
+                                                Array.from({ length: 32 }).map((_, i) => (
+                                                    <div
+                                                        key={i}
+                                                        className="w-1.5 bg-primary/50 rounded-full animate-pulse"
+                                                        style={{
+                                                            height: `${4 + Math.sin(i * 0.5) * 8}px`,
+                                                            animationDelay: `${i * 30}ms`,
+                                                        }}
+                                                    />
+                                                ))
+                                            )}
+                                        </div>
+                                        <span className="text-xs text-red-400 font-medium">Recording... Press again to stop</span>
+                                    </>
+                                ) : (
+                                    <span className="text-xs text-gray-500 font-medium font-sans uppercase tracking-widest">Press to speak</span>
+                                )}
                             </div>
-                            <span className="text-xs text-primary">Transcribing...</span>
                         </div>
                     )}
 
