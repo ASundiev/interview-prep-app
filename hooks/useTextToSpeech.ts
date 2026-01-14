@@ -18,7 +18,7 @@ export function useTextToSpeech(): TextToSpeechResult {
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const abortControllerRef = useRef<AbortController | null>(null);
 
-    const speak = useCallback(async (text: string, onReady?: () => void) => {
+    const speak = useCallback(async (text: string, onReady?: () => void, voice?: string) => {
         setError(null);
         setIsLoading(true);
 
@@ -41,7 +41,7 @@ export function useTextToSpeech(): TextToSpeechResult {
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({ text, voice: "ash" }),
+                body: JSON.stringify({ text, voice }),
                 signal: abortControllerRef.current.signal,
             });
 
