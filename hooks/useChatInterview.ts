@@ -105,7 +105,6 @@ export function useChatInterview(): ChatInterviewResult {
             });
 
             startTimeRef.current = new Date().toISOString();
-
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({ error: "Failed to start interview" }));
                 throw new Error(errorData.error || "Failed to start interview");

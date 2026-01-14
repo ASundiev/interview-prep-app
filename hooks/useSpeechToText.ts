@@ -71,7 +71,6 @@ export function useSpeechToText(): SpeechToTextResult {
             });
 
             console.log("Transcription response status:", response.status);
-
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({ error: "Transcription failed" }));
                 throw new Error(errorData.error || "Failed to transcribe audio");

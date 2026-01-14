@@ -42,7 +42,6 @@ function buildSystemPrompt(context: InterviewContext, constraints?: { questionCo
             constraintInstructions += `\n- **CONSTRAINT**: You have been interviewing for ${Math.floor(elapsedMinutes)} minutes. You must conclude the interview in the next few minutes.`;
         }
     }
-
     return `You are a professional, high-stakes interviewer. Your goal is to conduct a realistic, rigorous mock interview.
 
 ## Communication Style:
