@@ -7,7 +7,7 @@ const openai = new OpenAI({
 
 export async function POST(req: NextRequest) {
     try {
-        const { text, voice = "ash" } = await req.json();
+        const { text, voice = "nova" } = await req.json();
 
         if (!text || typeof text !== "string") {
             return NextResponse.json(
@@ -26,8 +26,9 @@ export async function POST(req: NextRequest) {
 
         const mp3 = await openai.audio.speech.create({
             model: "tts-1",
-            voice: voice as "alloy" | "echo" | "fable" | "onyx" | "nova" | "shimmer",
+            voice: voice as "alloy" | "echo" | "fable" | "onyx" | "nova" | "shimmer" | "ash" | "sage" | "coral",
             input: text,
+            speed: 1.15,
         });
 
         // Get the audio data as an ArrayBuffer
