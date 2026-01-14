@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Upload, FileText, ArrowRight, Loader2, CheckCircle2, Mic, Zap, Bot, Clock } from "lucide-react";
+import { Upload, FileText, ArrowRight, Loader2, CheckCircle2, Mic, Zap, MessageSquare } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function Home() {
@@ -97,8 +97,8 @@ export default function Home() {
                   </div>
                 </div>
                 <div>
-                  <h4 className="text-base font-semibold text-white">Real-time Voice</h4>
-                  <p className="mt-1 text-sm text-gray-400 leading-relaxed">Natural, conversation-based AI interviews.</p>
+                  <h4 className="text-base font-semibold text-white">Voice-Enabled Chat</h4>
+                  <p className="mt-1 text-sm text-gray-400 leading-relaxed">Speak naturally with voice-to-text and AI voice responses.</p>
                 </div>
               </div>
 
@@ -130,17 +130,14 @@ export default function Home() {
 
               {/* Feature 4 */}
               <div className="flex items-start space-x-3 text-left">
-                <div className="flex-shrink-0 relative">
-                  <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-dark-800 text-gray-500 border border-white/5">
-                    <Bot className="w-5 h-5" />
-                  </div>
-                  <div className="absolute -top-1 -right-1 flex items-center justify-center w-4 h-4 rounded-full bg-dark-900 border border-white/10 text-gray-500">
-                    <Clock className="w-2.5 h-2.5" />
+                <div className="flex-shrink-0">
+                  <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10 text-primary border border-primary/20">
+                    <MessageSquare className="w-5 h-5" />
                   </div>
                 </div>
                 <div>
-                  <h4 className="text-base font-semibold text-gray-400">Realistic Avatars</h4>
-                  <p className="mt-1 text-sm text-gray-600 leading-relaxed">Immersive practice with lifelike avatars.</p>
+                  <h4 className="text-base font-semibold text-white">Live Transcript</h4>
+                  <p className="mt-1 text-sm text-gray-400 leading-relaxed">Review and download your full interview transcript.</p>
                 </div>
               </div>
             </div>
