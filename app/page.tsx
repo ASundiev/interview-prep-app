@@ -156,11 +156,11 @@ export default function Home() {
 
               {/* CV Upload */}
               <div className="space-y-2 relative z-10">
-                <label className="block text-xs font-medium text-gray-400 uppercase tracking-wider">Resume / CV</label>
+                <label className="block text-xs font-medium text-gray-400 uppercase tracking-wider">Resume / CV (Optional)</label>
                 <div className="relative group/input">
                   <input
                     type="file"
-                    accept=".pdf,.doc,.docx"
+                    accept=".pdf,.doc,.docx,.txt,.md"
                     onChange={(e) => handleFileChange(e, setCvFile)}
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
                   />
@@ -169,7 +169,7 @@ export default function Home() {
                       <div className={`p-2 rounded-lg ${cvFile ? 'bg-primary text-white' : 'bg-dark-800 text-gray-500'}`}>
                         <FileText className="w-4 h-4" />
                       </div>
-                      <span className="text-sm font-medium truncate max-w-[180px]">{cvFile ? cvFile.name : "Upload PDF or DOC"}</span>
+                      <span className="text-sm font-medium truncate max-w-[180px]">{cvFile ? cvFile.name : "Upload Resume / CV"}</span>
                     </div>
                     {cvFile && <CheckCircle2 className="w-5 h-5 text-primary" />}
                   </div>
@@ -178,11 +178,11 @@ export default function Home() {
 
               {/* JD Upload */}
               <div className="space-y-2 relative z-10">
-                <label className="block text-xs font-medium text-gray-400 uppercase tracking-wider">Job Description</label>
+                <label className="block text-xs font-medium text-gray-400 uppercase tracking-wider">Job Description (Optional)</label>
                 <div className="relative group/input">
                   <input
                     type="file"
-                    accept=".pdf,.doc,.docx"
+                    accept=".pdf,.doc,.docx,.txt,.md"
                     onChange={(e) => handleFileChange(e, setJdFile)}
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
                   />
@@ -198,13 +198,13 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Recruiter Profile PDF */}
+              {/* Recruiter Profile */}
               <div className="space-y-2 relative z-10">
-                <label className="block text-xs font-medium text-gray-400 uppercase tracking-wider">Recruiter Profile (PDF)</label>
+                <label className="block text-xs font-medium text-gray-400 uppercase tracking-wider">Recruiter Profile (Optional)</label>
                 <div className="relative group/input">
                   <input
                     type="file"
-                    accept=".pdf"
+                    accept=".pdf,.doc,.docx,.txt,.md"
                     onChange={(e) => handleFileChange(e, setRecruiterFile)}
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
                   />
@@ -213,7 +213,7 @@ export default function Home() {
                       <div className={`p-2 rounded-lg ${recruiterFile ? 'bg-primary text-white' : 'bg-dark-800 text-gray-500'}`}>
                         <FileText className="w-4 h-4" />
                       </div>
-                      <span className="text-sm font-medium truncate max-w-[180px]">{recruiterFile ? recruiterFile.name : "Upload LinkedIn Profile PDF"}</span>
+                      <span className="text-sm font-medium truncate max-w-[180px]">{recruiterFile ? recruiterFile.name : "Upload LinkedIn Profile"}</span>
                     </div>
                     {recruiterFile && <CheckCircle2 className="w-5 h-5 text-primary" />}
                   </div>
@@ -226,7 +226,7 @@ export default function Home() {
                 <div className="relative group/input">
                   <input
                     type="file"
-                    accept=".pdf,.txt,.md,.doc,.docx"
+                    accept=".pdf,.doc,.docx,.txt,.md"
                     onChange={(e) => handleFileChange(e, setExtraContextFile)}
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20"
                   />
@@ -264,7 +264,7 @@ export default function Home() {
 
               <button
                 type="submit"
-                disabled={isLoading || !cvFile || !jdFile}
+                disabled={isLoading}
                 className="w-full btn-primary flex items-center justify-center space-x-2 mt-4 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isLoading ? (

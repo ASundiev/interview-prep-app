@@ -44,24 +44,26 @@ export async function POST(req: NextRequest) {
         const recruiterFile = formData.get("recruiter") as File | null;
         const extraContextFile = formData.get("extraContext") as File | null;
         const interviewType = (formData.get("interviewType") as string | null) || "screening";
-        if (!cvFile || !jdFile) {
-            return NextResponse.json({ error: "Both CV and JD files are required" }, { status: 400 });
+        // Parse CV
+        let cvText = "N/A (Not Provided)";
+        if (cvFile) {
+            cvText = await parseFile(cvFile);
         }
 
-        // Parse CV
-        const cvText = await parseFile(cvFile);
-
         // Parse JD
-        const jdText = await parseFile(jdFile);
+        let jdText = "N/A (Not Provided)";
+        if (jdFile) {
+            jdText = await parseFile(jdFile);
+        }
 
         // Parse Recruiter Profile if available
-        let recruiterText = "N/A";
+        let recruiterText = "N/A (Not Provided)";
         if (recruiterFile) {
             recruiterText = await parseFile(recruiterFile);
         }
 
         // Parse Extra Context if available
-        let extraContextText = "N/A";
+        let extraContextText = "N/A (Not Provided)";
         if (extraContextFile) {
             extraContextText = await parseFile(extraContextFile);
         }
@@ -74,6 +76,8 @@ export async function POST(req: NextRequest) {
                     role: "system",
                     content: `You are an expert recruiter and interview coach. 
           Analyze the provided Candidate CV, Job Description, and optionally a Recruiter's LinkedIn Profile (PDF text) and Extra Context documents.
+          
+          If some documents are missing (marked as "N/A"), proceed with the information available. If both CV and Job Description are missing, provide a general interview preparation strategy and generic questions for the selected interview type.
           
           If a Recruiter Profile is provided, analyze their background (technical vs HR), tone, and recent activity to tailor the interview strategy.
 
@@ -122,7 +126,7 @@ export async function POST(req: NextRequest) {
 
         const result = JSON.parse(completion.choices[0].message.content || "{}");
         result.interviewType = interviewType;
-        result.extraContext = extraContextText !== "N/A" ? extraContextText : null;
+        result.extraContext = extraContextText !== "N/A (Not Provided)" ? extraContextText : null;
 
         return NextResponse.json(result);
     } catch (error) {
