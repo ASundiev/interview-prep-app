@@ -2,21 +2,11 @@
 
 import { useState, useCallback, useRef } from "react";
 import { useTextToSpeech } from "./useTextToSpeech";
+import { InterviewContext } from "@/types/profile";
 
 interface Message {
     role: "user" | "assistant";
     text: string;
-}
-
-interface InterviewContext {
-    candidateName?: string;
-    roleTitle?: string;
-    interviewQuestions?: string[];
-    companyContext?: string;
-    candidateSummary?: string;
-    extraContext?: string | null;
-    interviewType?: "screening" | "hiring-manager" | "cultural-fit";
-    recruiterStrategy?: string;
 }
 
 interface ChatInterviewResult {
