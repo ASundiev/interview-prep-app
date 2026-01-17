@@ -2,8 +2,19 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, XCircle, TrendingUp, ArrowRight, Loader2, RefreshCw, Award, Target, Zap, Download } from "lucide-react";
+import { CheckCircle2, XCircle, TrendingUp, ArrowRight, Loader2, RefreshCw, Award, Target, Zap, Download, RotateCcw, ChevronRight, List } from "lucide-react";
 import { generateTranscriptMarkdown } from "@/utils/generateTranscriptMarkdown";
+import {
+    getActiveRoleId,
+    getActiveStageId,
+    getRoleById,
+    updateLastSession,
+    setActiveSessionId,
+    getNextStage,
+    setActiveStageId,
+    generateId,
+} from "@/utils/profileStorage";
+import { STORAGE_KEYS, AnalysisResult as AnalysisResultType, InterviewContext, InterviewStage } from "@/types/profile";
 
 interface AnalysisResult {
     overallScore: number;
@@ -13,23 +24,18 @@ interface AnalysisResult {
     improvementTips: string[];
 }
 
-interface InterviewContext {
-    candidateName?: string;
-    roleTitle?: string;
-    interviewType?: "screening" | "hiring-manager" | "cultural-fit";
-    companyContext?: string;
-}
-
 export default function FeedbackPage() {
     const router = useRouter();
     const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [context, setContext] = useState<InterviewContext | null>(null);
+    const [activeRoleId, setActiveRoleIdState] = useState<string | null>(null);
+    const [nextStage, setNextStageState] = useState<InterviewStage | null>(null);
 
     useEffect(() => {
         const analyzeInterview = async () => {
-            const transcript = localStorage.getItem("interviewTranscript");
-            const storedContext = localStorage.getItem("interviewContext");
+            const transcript = localStorage.getItem(STORAGE_KEYS.INTERVIEW_TRANSCRIPT);
+            const storedContext = localStorage.getItem(STORAGE_KEYS.INTERVIEW_CONTEXT);
 
             if (!transcript || !storedContext) {
                 router.push("/");
@@ -38,6 +44,19 @@ export default function FeedbackPage() {
 
             const parsedContext = JSON.parse(storedContext);
             setContext(parsedContext);
+
+            // Check for active role
+            const roleId = getActiveRoleId();
+            const stageId = getActiveStageId();
+            setActiveRoleIdState(roleId);
+
+            if (roleId && stageId) {
+                const role = getRoleById(roleId);
+                if (role) {
+                    const next = getNextStage(role, stageId);
+                    setNextStageState(next);
+                }
+            }
 
             try {
                 const response = await fetch("/api/analyze", {
@@ -53,16 +72,25 @@ export default function FeedbackPage() {
 
                 const data = await response.json();
                 setAnalysis(data);
+
+                // Update role session with analysis
+                if (roleId) {
+                    updateLastSession(roleId, { analysis: data });
+                }
             } catch (error) {
                 console.error(error);
                 // Mock data for fallback
-                setAnalysis({
+                const fallbackAnalysis = {
                     overallScore: 85,
                     feedbackSummary: "Great job! You demonstrated strong technical knowledge and communicated your ideas clearly. There are a few areas where you could be more concise.",
                     strengths: ["Clear communication", "Good technical depth", "Structured answers"],
                     weaknesses: ["Could be more concise", "Missed some STAR method opportunities"],
                     improvementTips: ["Practice STAR method", "Focus on business impact", "Ask more clarifying questions"]
-                });
+                };
+                setAnalysis(fallbackAnalysis);
+                if (roleId) {
+                    updateLastSession(roleId, { analysis: fallbackAnalysis });
+                }
             } finally {
                 setIsLoading(false);
             }
@@ -72,7 +100,7 @@ export default function FeedbackPage() {
     }, [router]);
 
     const handleDownload = () => {
-        const transcriptRaw = localStorage.getItem("interviewTranscript");
+        const transcriptRaw = localStorage.getItem(STORAGE_KEYS.INTERVIEW_TRANSCRIPT);
         const transcript = transcriptRaw ? JSON.parse(transcriptRaw) : [];
         const markdown = generateTranscriptMarkdown(transcript, context || {}, analysis);
 
@@ -236,21 +264,63 @@ export default function FeedbackPage() {
                     </div>
                 </div>
 
-                <div className="flex justify-center gap-4 pt-8 pb-12">
+                <div className="flex flex-wrap justify-center gap-4 pt-8 pb-12">
                     <button
                         onClick={handleDownload}
-                        className="py-4 px-10 text-lg flex items-center space-x-3 rounded-xl border border-white/10 bg-dark-800 hover:bg-dark-700 transition-colors shadow-lg"
+                        className="py-4 px-8 text-base flex items-center space-x-2 rounded-xl border border-white/10 bg-dark-800 hover:bg-dark-700 transition-colors shadow-lg"
                     >
                         <Download className="w-5 h-5" />
                         <span>Download Report</span>
                     </button>
-                    <button
-                        onClick={() => router.push("/")}
-                        className="btn-primary py-4 px-10 text-lg flex items-center space-x-3 shadow-2xl hover:shadow-primary/50"
-                    >
-                        <RefreshCw className="w-5 h-5" />
-                        <span>Start New Interview</span>
-                    </button>
+
+                    {activeRoleId && (
+                        <>
+                            <button
+                                onClick={() => {
+                                    // Practice same stage again
+                                    setActiveSessionId(generateId());
+                                    router.push("/interview");
+                                }}
+                                className="py-4 px-8 text-base flex items-center space-x-2 rounded-xl border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                            >
+                                <RotateCcw className="w-5 h-5" />
+                                <span>Practice Again</span>
+                            </button>
+
+                            {nextStage && (
+                                <button
+                                    onClick={() => {
+                                        // Progress to next stage
+                                        setActiveStageId(nextStage.id);
+                                        setActiveSessionId(generateId());
+                                        router.push("/interview");
+                                    }}
+                                    className="py-4 px-8 text-base flex items-center space-x-2 rounded-xl border border-green-500/30 bg-green-500/10 text-green-400 hover:bg-green-500/20 transition-colors"
+                                >
+                                    <ChevronRight className="w-5 h-5" />
+                                    <span>Next Stage: {nextStage.name}</span>
+                                </button>
+                            )}
+
+                            <button
+                                onClick={() => router.push("/roles")}
+                                className="py-4 px-8 text-base flex items-center space-x-2 rounded-xl border border-white/10 bg-dark-800 hover:bg-dark-700 transition-colors"
+                            >
+                                <List className="w-5 h-5" />
+                                <span>View Roles</span>
+                            </button>
+                        </>
+                    )}
+
+                    {!activeRoleId && (
+                        <button
+                            onClick={() => router.push("/")}
+                            className="btn-primary py-4 px-10 text-lg flex items-center space-x-3 shadow-2xl hover:shadow-primary/50"
+                        >
+                            <RefreshCw className="w-5 h-5" />
+                            <span>Start New Interview</span>
+                        </button>
+                    )}
                 </div>
             </div>
         </main>

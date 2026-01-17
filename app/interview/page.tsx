@@ -5,16 +5,17 @@ import { Mic, MicOff, Send, X, Loader2, Volume2, VolumeX, MessageSquare } from "
 import { useRouter } from "next/navigation";
 import { useChatInterview } from "@/hooks/useChatInterview";
 import { useSpeechToText } from "@/hooks/useSpeechToText";
-
-interface InterviewContext {
-    candidateName: string;
-    roleTitle: string;
-    interviewQuestions: string[];
-    companyContext?: string;
-    candidateSummary?: string;
-    extraContext?: string | null;
-    interviewType?: "screening" | "hiring-manager" | "cultural-fit";
-}
+import {
+    getActiveRoleId,
+    getActiveSessionId,
+    getActiveStageId,
+    addSessionToRole,
+    getRoleById,
+    getUserProfile,
+    getPastFeedbackSummary,
+    generateId,
+} from "@/utils/profileStorage";
+import { InterviewSession, InterviewContext, STORAGE_KEYS } from "@/types/profile";
 
 type InputState = "ready" | "recording" | "editing";
 
@@ -25,6 +26,7 @@ export default function InterviewPage() {
     const [editableText, setEditableText] = useState("");
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const [sessionStartTime] = useState<string>(new Date().toISOString());
 
     const {
         messages,
@@ -49,14 +51,53 @@ export default function InterviewPage() {
 
     // Initialize interview on mount
     useEffect(() => {
-        const stored = localStorage.getItem("interviewContext");
-        if (stored) {
-            const parsedContext = JSON.parse(stored);
-            setContext(parsedContext);
-            startInterview(parsedContext);
-        } else {
+        const roleId = getActiveRoleId();
+        const stageId = getActiveStageId();
+
+        if (!roleId || !stageId) {
             router.push("/");
+            return;
         }
+
+        const role = getRoleById(roleId);
+        const profile = getUserProfile();
+        const stage = role?.stages.find((s) => s.id === stageId);
+
+        if (!role || !stage) {
+            router.push("/");
+            return;
+        }
+
+        // Build context from profile and role
+        const cvText = role.customCvText || profile?.defaultCvText || "";
+        const pastFeedback = getPastFeedbackSummary(roleId);
+
+        const interviewContext: InterviewContext = {
+            userName: profile?.name,
+            userBackground: profile?.background,
+            userStrengths: profile?.strengths,
+            userPreferences: profile?.preferences,
+            cvText,
+            roleName: role.roleName,
+            companyName: role.companyName,
+            roleTitle: role.roleTitle,
+            jdText: role.jdText || undefined,
+            recruiterText: role.recruiterText || undefined,
+            extraContext: role.extraContext,
+            stageName: stage.name,
+            stageDescription: stage.description,
+            pastFeedback,
+            // Legacy fields for backwards compatibility
+            candidateName: profile?.name,
+            candidateSummary: cvText,
+            interviewType: stageId as any,
+        };
+
+        // Save context for feedback page
+        localStorage.setItem(STORAGE_KEYS.INTERVIEW_CONTEXT, JSON.stringify(interviewContext));
+
+        setContext(interviewContext);
+        startInterview(interviewContext);
     }, [router, startInterview]);
 
     // Auto-scroll to latest message
@@ -114,7 +155,30 @@ export default function InterviewPage() {
 
     const handleEndInterview = () => {
         stopSpeaking();
-        localStorage.setItem("interviewTranscript", JSON.stringify(messages));
+
+        // Save transcript to localStorage for feedback page
+        localStorage.setItem(STORAGE_KEYS.INTERVIEW_TRANSCRIPT, JSON.stringify(messages));
+
+        // Save session to role if active
+        const roleId = getActiveRoleId();
+        const stageId = getActiveStageId();
+        const sessionId = getActiveSessionId() || generateId();
+        const role = roleId ? getRoleById(roleId) : null;
+        const stage = role?.stages.find((s) => s.id === stageId);
+
+        if (roleId && stage) {
+            const session: InterviewSession = {
+                id: sessionId,
+                stageId: stage.id,
+                stageName: stage.name,
+                startedAt: sessionStartTime,
+                endedAt: new Date().toISOString(),
+                transcript: messages,
+                analysis: null, // Will be updated by feedback page
+            };
+            addSessionToRole(roleId, session);
+        }
+
         router.push("/feedback");
     };
 

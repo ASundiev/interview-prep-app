@@ -1,21 +1,8 @@
+import { InterviewContext, AnalysisResult, Message } from "@/types/profile";
+
 interface TranscriptItem {
     role: string;
     text: string;
-}
-
-interface InterviewContext {
-    candidateName?: string;
-    roleTitle?: string;
-    interviewType?: "screening" | "hiring-manager" | "cultural-fit";
-    companyContext?: string;
-}
-
-interface AnalysisResult {
-    overallScore: number;
-    feedbackSummary: string;
-    strengths: string[];
-    weaknesses: string[];
-    improvementTips: string[];
 }
 
 export function generateTranscriptMarkdown(
